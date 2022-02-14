@@ -19,10 +19,8 @@ namespace Mongo.Repository
         Maybe<string>[] Upsert(params T[] instances);
         void Delete(params T[] instances);
         void Delete(params string[] ids);
-        bool IsRunningEmulator { get; }
 
-
-        Task<ResultPage<T>> QueryAsync(IFilter<T> filter, string startCursor = null);
+        Task<ResultPage<T>> QueryAsync(IFilter<T> filter);
         Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value);
         Task<ResultPage<T>> QueryAllAsync();
         Task<ResultPage<T>> QueryAllAsync(int? limit = null, string startCursor = null);

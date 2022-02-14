@@ -17,7 +17,7 @@ namespace Mongo.Repository.Mock
     /// </summary>
     public class RepositoryMock<T> : IRepository<T>
     {
-        private static string[] KeyPropertyNames = new[] { "id", "key" };
+        private static readonly string[] KeyPropertyNames = new[] { "id", "key" };
 
         public bool IsRunningEmulator { get => false; }
 

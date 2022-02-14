@@ -1,8 +1,7 @@
-﻿using Google.Cloud.Mongo.V1;
+﻿using MongoDB.Bson;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
@@ -127,19 +126,19 @@ namespace Mongo.Repository.Impl
         {
             public Type Type { get; }
 
-            private Func<Value, object> fromFunc;
-            private Func<object, Value> toFunc;
+            private readonly Func<BsonValue, object> fromFunc;
+            private readonly Func<object, BsonValue> toFunc;
 
-            public DelegateValueConverter(Type type, Func<Value, object> fromFunc, Func<object, Value> toFunc)
+            public DelegateValueConverter(Type type, Func<BsonValue, object> fromFunc, Func<object, BsonValue> toFunc)
             {
                 Type = type ?? throw new ArgumentNullException(nameof(type));
                 this.fromFunc = fromFunc ?? throw new ArgumentNullException(nameof(fromFunc));
                 this.toFunc = toFunc ?? throw new ArgumentNullException(nameof(toFunc));
             }
 
-            public object FromValue(Value value)
+            public object FromValue(BsonValue value)
             {
-                if (value == null || value.IsNull)
+                if (value == null || value.IsBsonNull)
                 {
                     if (Type.IsValueType)
                         return Activator.CreateInstance(Type);
@@ -148,7 +147,7 @@ namespace Mongo.Repository.Impl
                 return fromFunc(value);
             }
 
-            public Value ToValue(object obj) => obj == null ? Value.ForNull() : toFunc(obj);
+            public BsonValue ToValue(object obj) => obj == null ? BsonValue.Create(null) : toFunc(obj);
             public IList<IEntityMigration> FindMigrations() => new IEntityMigration[] { };
         }
 
@@ -161,8 +160,8 @@ namespace Mongo.Repository.Impl
                 Type = type ?? throw new ArgumentNullException(nameof(type));
             }
 
-            public object FromValue(Value value) => Enum.Parse(Type, (string)value);
-            public Value ToValue(object obj) => Enum.GetName(Type, obj);
+            public object FromValue(BsonValue value) => Enum.Parse(Type, (string)value);
+            public BsonValue ToValue(object obj) => Enum.GetName(Type, obj);
             public IList<IEntityMigration> FindMigrations() => new IEntityMigration[] { };
         }
 
@@ -170,9 +169,9 @@ namespace Mongo.Repository.Impl
         {
             public Type Type { get; }
 
-            private Func<Q, P> fromFunc;
-            private Func<P, Q> toFunc;
-            private IValueConverter innerConverter;
+            private readonly Func<Q, P> fromFunc;
+            private readonly Func<P, Q> toFunc;
+            private readonly IValueConverter innerConverter;
 
             public CompositeConverter(Type type, Func<Q, P> fromFunc, Func<P, Q> toFunc, IValueConverter innerConverter)
             {
@@ -182,19 +181,19 @@ namespace Mongo.Repository.Impl
                 this.innerConverter = innerConverter ?? throw new ArgumentNullException(nameof(innerConverter));
             }
 
-            public object FromValue(Value value) => fromFunc((Q)innerConverter.FromValue(value));
-            public Value ToValue(object obj) => innerConverter.ToValue(toFunc((P)obj));
+            public object FromValue(BsonValue value) => fromFunc((Q)innerConverter.FromValue(value));
+            public BsonValue ToValue(object obj) => innerConverter.ToValue(toFunc((P)obj));
             public IList<IEntityMigration> FindMigrations() => innerConverter.FindMigrations();
         }
 
         private class MaybeConverter : IValueConverter
         {
             public Type Type { get; }
-            private PropertyInfo hasValueProperty;
-            private PropertyInfo valueProperty;
-            private ConstructorInfo constructor;
+            private readonly PropertyInfo hasValueProperty;
+            private readonly PropertyInfo valueProperty;
+            private readonly ConstructorInfo constructor;
 
-            private IValueConverter innerConverter;
+            private readonly IValueConverter innerConverter;
 
             public MaybeConverter(Type type, IValueConverter innerConverter)
             {
@@ -220,17 +219,17 @@ namespace Mongo.Repository.Impl
                 return valueProperty.GetValue(obj);
             }
 
-            public object FromValue(Value value)
+            public object FromValue(BsonValue value)
             {
-                return value == null || value.IsNull
+                return value == null || value.IsBsonNull
                     ? constructor.Invoke(new[] { (object)null, false })
                     : constructor.Invoke(new[] { innerConverter.FromValue(value), true });
             }
 
-            public Value ToValue(object obj)
+            public BsonValue ToValue(object obj)
             {
                 if (!MaybeHasValue(obj))
-                    return Value.ForNull();
+                    return BsonValue.Create(null);
                 return innerConverter.ToValue(MaybeValue(obj));
             }
 
@@ -241,7 +240,7 @@ namespace Mongo.Repository.Impl
         {
             public Type Type { get; }
 
-            private IValueConverter innerConverter;
+            private readonly IValueConverter innerConverter;
 
             public ArrayValueConverter(Type type, IValueConverter innerConverter)
             {
@@ -249,32 +248,28 @@ namespace Mongo.Repository.Impl
                 this.innerConverter = innerConverter ?? throw new ArgumentNullException(nameof(innerConverter));
             }
 
-            public object FromValue(Value value)
+            public object FromValue(BsonValue value)
             {
-                if (value == null || value.IsNull)
+                if (value == null || value.IsBsonNull)
                     return null;
 
-                var values = value.ArrayValue?.Values;
-                if (values == null)
-                    return null;
-
+                var values = value.AsBsonArray;
                 var array = Array.CreateInstance(innerConverter.Type, values.Count);
                 for (var i = 0; i < values.Count; ++i)
                     array.SetValue(innerConverter.FromValue(values[i]), i);
                 return array;
             }
 
-            public Value ToValue(object obj)
+            public BsonValue ToValue(object obj)
             {
                 if (obj == null)
-                    return Value.ForNull();
+                    return BsonValue.Create(null);
 
-                var array = new ArrayValue();
+                var array = new BsonArray();
                 foreach (var value in (ICollection)obj)
-                    array.Values.Add(innerConverter.ToValue(value));
+                    array.Add(innerConverter.ToValue(value));
                 return array;
             }
-
             public IList<IEntityMigration> FindMigrations() => innerConverter.FindMigrations();
         }
 
@@ -282,7 +277,7 @@ namespace Mongo.Repository.Impl
         {
             public Type Type { get; }
 
-            private Lazy<IEntityMapping> mapping;
+            private readonly Lazy<IEntityMapping> mapping;
 
             public EntityConverter(Type type, Func<IEntityMapping> mappingFactory)
             {
@@ -290,8 +285,8 @@ namespace Mongo.Repository.Impl
                 mapping = new Lazy<IEntityMapping>(mappingFactory);
             }
 
-            public object FromValue(Value value) => mapping.Value.FromEntity(value?.EntityValue);
-            public Value ToValue(object obj) => mapping.Value.ToEntity(obj);
+            public object FromValue(BsonValue value) => value.IsBsonNull ? null : mapping.Value.FromEntity(value?.AsBsonDocument);
+            public BsonValue ToValue(object obj) => mapping.Value.ToEntity(obj);
             public IList<IEntityMigration> FindMigrations() => mapping.Value.FindMigrations();
         }
 
@@ -304,52 +299,41 @@ namespace Mongo.Repository.Impl
                 Type = type;
             }
 
-            public object FromValue(Value value)
+            public object FromValue(BsonValue value)
             {
-                if (value == null || value.IsNull)
+                if (value == null || value.IsBsonNull)
                     return null;
-
-                var map = new Dictionary<string, object>();
-                foreach (var property in value.EntityValue.Properties)
-                {
-                    var entityValue =
-                        property.Value.ValueTypeCase == Value.ValueTypeOneofCase.BooleanValue ? (bool)property.Value :
-                        property.Value.ValueTypeCase == Value.ValueTypeOneofCase.StringValue ? (string)property.Value :
-                        property.Value.ValueTypeCase == Value.ValueTypeOneofCase.IntegerValue ? (long)property.Value :
-                        property.Value.ValueTypeCase == Value.ValueTypeOneofCase.NullValue ? (object)null :
-                        throw new ArgumentException($"Entity value type {property.Value.ValueTypeCase} not supported");
-
-                    map[property.Key] = entityValue;
-                }
-                return map;
+                return value.AsBsonDocument.ToDictionary();
             }
 
-            public Value ToValue(object obj)
+            public BsonValue ToValue(object obj)
             {
                 if (obj == null)
-                    return Value.ForNull();
+                    return BsonValue.Create(null);
 
                 var map = (IDictionary<string, object>)obj;
-                var entity = new Entity();
+                var entity = new BsonDocument();
                 var supportedValueTypes = new[] { typeof(string), typeof(long), typeof(int), typeof(bool) }.ToHashSet();
                 foreach (var pair in map)
                 {
-                    Value value;
+                    BsonValue value;
                     if (pair.Value is JsonElement jsonElement)
                     {
-                        value =
-                            jsonElement.ValueKind == JsonValueKind.String ? jsonElement.GetString() :
-                            jsonElement.ValueKind == JsonValueKind.Null ? Value.ForNull() :
-                            jsonElement.ValueKind == JsonValueKind.Number ? jsonElement.GetInt64() :
-                            jsonElement.ValueKind == JsonValueKind.True ? jsonElement.GetBoolean() :
-                            jsonElement.ValueKind == JsonValueKind.False ? (Value)jsonElement.GetBoolean() :
-                            throw new ArgumentException($"Json value kind {jsonElement.ValueKind} not supported");
+                        value = jsonElement.ValueKind switch
+                        {
+                            JsonValueKind.String => jsonElement.GetString(),
+                            JsonValueKind.Number => jsonElement.GetInt64(),
+                            JsonValueKind.True => jsonElement.GetBoolean(),
+                            JsonValueKind.False => jsonElement.GetBoolean(),
+                            JsonValueKind.Null => BsonValue.Create(null),
+                            _ => throw new ArgumentException($"Json value kind {jsonElement.ValueKind} not supported"),
+                        };
                     }
                     else
                     {
                         if (pair.Value == null)
                         {
-                            value = Value.ForNull();
+                            value = BsonValue.Create(null);
                         }
                         else if (!supportedValueTypes.Contains(pair.Value.GetType()))
                         {

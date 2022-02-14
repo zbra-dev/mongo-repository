@@ -16,13 +16,15 @@ namespace Mongo.Repository.Impl
 
     internal interface IEntityMapping<T> : IEntityMapping
     {
-
         string Name { get; }
+        Maybe<Func<T, string>> UniqueProperty { get; }
 
         new T FromEntity(BsonDocument entity);
         BsonDocument ToEntity(T instance, Func<BsonDocument, ObjectId> keyFactory = null);
         Maybe<string> GetFieldName(PropertyInfo propertyInfo);
         Maybe<string> GetFieldName(string propertyName);
+        BsonValue ConvertToValue(string fieldName, object obj);
+        object ConvertFromValue(string fieldName, BsonValue value);
         string GetKeyValue(T instance);
     }
 
@@ -32,33 +34,28 @@ namespace Mongo.Repository.Impl
         private readonly PropertyMapping[] properties;
         private readonly EntityMigration<T> migration;
 
-        private readonly Func<T, string> uniqueFunc;
-
         public string Name { get; }
+        public Maybe<Func<T, string>> UniqueProperty { get; }
 
-        public EntityMapping(string name, PropertyMapping[] properties, KeyMapping keyMapping = null, EntityMigration<T> migration = null, Func<T, string> uniqueFunc = null)
+        public EntityMapping(
+            string name,
+            PropertyMapping[] properties,
+            KeyMapping keyMapping = null,
+            EntityMigration<T> migration = null,
+            Func<T, string> uniqueProperty = null)
         {
             Name = name;
+            UniqueProperty = uniqueProperty.ToMaybe();
             this.properties = properties;
             this.keyMapping = keyMapping;
             this.migration = migration;
-            this.uniqueFunc = uniqueFunc;
-        }
-
-        private string GetUniqueValue(T instance)
-        {
-            if (uniqueFunc == null)
-                throw new InvalidOperationException("Unique constraint not defined");
-            var value = uniqueFunc(instance);
-            if (value == null)
-                throw new InvalidOperationException("Unique value cannot be null");
-            return value;
         }
 
         public Maybe<string> GetFieldName(PropertyInfo propertyInfo) => properties.MaybeFirst(p => p.Member == propertyInfo).Select(p => p.Name);
         public Maybe<string> GetFieldName(string propertyName) => properties.MaybeFirst(p => p.Member.Name.LowerFirst() == propertyName.LowerFirst()).Select(p => p.Name);
+        public BsonValue ConvertToValue(string fieldName, object obj) => properties.First(p => p.Name == fieldName).ConvertToValue(obj);
+        public object ConvertFromValue(string fieldName, BsonValue value) => properties.First(p => p.Name == fieldName).ConvertFromValue(value);
         public string GetKeyValue(T instance) => keyMapping.GetKeyValue(instance);
-        public bool HasUniqueConstraint() => uniqueFunc != null;
 
         public BsonDocument ToEntity(T instance, Func<BsonDocument, ObjectId> keyFactory = null)
         {
@@ -85,19 +82,6 @@ namespace Mongo.Repository.Impl
             return instance;
         }
 
-        public Entity ToUnique(T instance, KeyFactory uniqueKeyFactory)
-        {
-            if (instance == null)
-                throw new ArgumentNullException(nameof(instance));
-            var entity = new Entity();
-            var uniqueValue = GetUniqueValue(instance);
-            entity.Key = uniqueKeyFactory.CreateKey(uniqueValue);
-            entity["created"] = DateTime.UtcNow;
-            entity["entity"] = Name;
-            entity["uniqueValue"] = uniqueValue;
-            return entity;
-        }
-
         object IEntityMapping.FromEntity(BsonDocument entity) => FromEntity(entity);
         BsonDocument IEntityMapping.ToEntity(object instance, Func<BsonDocument, ObjectId> keyFactory) => ToEntity((T)instance, keyFactory);
 
@@ -115,6 +99,19 @@ namespace Mongo.Repository.Impl
     {
         public string Name { get; }
 
+        public Maybe<Func<T, string>> UniqueProperty
+        {
+            get
+            {
+                return concreteMapping.UniqueProperty
+                    .Select(p =>
+                    {
+                        string unique(T o) => p(toConcreteFunc(o));
+                        return (Func<T, string>)unique;
+                    });
+            }
+        }
+
         private readonly IEntityMapping<U> concreteMapping;
         private readonly Func<T, U> toConcreteFunc;
 
@@ -125,8 +122,10 @@ namespace Mongo.Repository.Impl
             this.toConcreteFunc = toConcreteFunc;
         }
 
-        public string GetFieldName(PropertyInfo propertyInfo) => concreteMapping.GetFieldName(propertyInfo.Name);
-        public string GetFieldName(string propertyName) => concreteMapping.GetFieldName(propertyName);
+        public Maybe<string> GetFieldName(PropertyInfo propertyInfo) => concreteMapping.GetFieldName(propertyInfo.Name);
+        public Maybe<string> GetFieldName(string propertyName) => concreteMapping.GetFieldName(propertyName);
+        public BsonValue ConvertToValue(string fieldName, object obj) => concreteMapping.ConvertToValue(fieldName, obj);
+        public object ConvertFromValue(string fieldName, BsonValue value) => concreteMapping.ConvertFromValue(fieldName, value);
         public string GetKeyValue(T instance) => concreteMapping.GetKeyValue(toConcreteFunc(instance));
         public BsonDocument ToEntity(T instance, Func<BsonDocument, ObjectId> keyFactory = null) => concreteMapping.ToEntity(toConcreteFunc(instance), keyFactory);
         public T FromEntity(BsonDocument entity) => concreteMapping.FromEntity(entity);
@@ -153,6 +152,9 @@ namespace Mongo.Repository.Impl
             var methodInfo = Member.GetSetMethod(true);
             hasSetter = methodInfo != null && (methodInfo.IsPublic || methodInfo.IsPrivate);
         }
+
+        public BsonValue ConvertToValue(object obj) => Converter.ToValue(obj);
+        public object ConvertFromValue(BsonValue value) => Converter.FromValue(value);
 
         public virtual void ReadFromEntity(BsonDocument entity, object instance)
         {

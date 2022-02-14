@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Mongo.Repository.Impl
+namespace Mongo.Repository
 {
     internal interface IValueConverter
     {

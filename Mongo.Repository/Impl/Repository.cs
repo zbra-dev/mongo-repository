@@ -1,7 +1,7 @@
-using Google.Api.Gax;
-using Google.Cloud.Mongo.V1;
-using Google.Protobuf;
-using Grpc.Core;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.IdGenerators;
+using MongoDB.Driver;
 using System;
 using System.Linq;
 using System.Linq.Expressions;
@@ -12,38 +12,28 @@ namespace Mongo.Repository.Impl
 {
     public class Repository<T> : IRepository<T>
     {
-        public bool IsRunningEmulator { get; }
-        private readonly DatastoreDb db;
+        private readonly IMongoClient client;
+        private readonly IMongoCollection<BsonDocument> collection;
         private readonly IEntityMapping<T> mapping;
-        private readonly KeyFactory keyFactory;
-        private readonly KeyFactory uniqueKeyFactory;
+        private readonly IIdGenerator idGenerator;
 
-        public Repository(DatastoreDb db, Mappings mappings)
+        public Repository(IMongoClient client, IMongoDatabase db, Mappings mappings)
         {
-            this.db = db;
-            this.mapping = mappings.Get<T>();
-            this.keyFactory = !mapping.Name.EndsWith("unique") ? db.CreateKeyFactory(mapping.Name) : throw new ArgumentException("Entity name cannot end with 'unique'");
-            this.uniqueKeyFactory = db.CreateKeyFactory($"{mapping.Name}_unique");
-            IsRunningEmulator = Platform.Instance().Type == PlatformType.Unknown;
+            this.client = client;
+            mapping = mappings.Get<T>();
+            collection = db.GetCollection<BsonDocument>(mapping.Name);
+            idGenerator = new ObjectIdGenerator();
+        }
+
+        private ObjectId CreateId(BsonDocument document)
+        {
+            var id = idGenerator.GenerateId(collection, document);
+            return (ObjectId)id;
         }
 
         private async Task<ResultPage<T>> ToPage(DatastoreQueryResults result, Query query)
         {
             var hasMoreResults = result.MoreResults != QueryResultBatch.Types.MoreResultsType.NoMoreResults;
-
-            // there's a known bug with Datastore emulator
-            // reference: https://github.com/googleapis/google-cloud-node/issues/2846
-            // we need to fix the behavior to avoid running queries forever
-            if (IsRunningEmulator && hasMoreResults)
-            {
-                var hasMoreQuery = query.Clone();
-                hasMoreQuery.Offset = query.Offset + result.Entities.Count;
-                hasMoreQuery.Limit = 1;
-
-                var hasMoreQueryResult = await db.RunQueryAsync(hasMoreQuery);
-
-                hasMoreResults = hasMoreQueryResult.Entities.Count > 0;
-            }
 
             return new ResultPage<T>(
                 result.Entities.Select(i => mapping.FromEntity(i)),
@@ -52,32 +42,55 @@ namespace Mongo.Repository.Impl
             );
         }
 
-        public async Task<ResultPage<T>> QueryAllAsync(int? limit = null, string startCursor = null)
+        public async Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null)
         {
-            var query = new Query(mapping.Name) { Limit = limit };
-            if (startCursor != null)
-                query.StartCursor = ByteString.FromBase64(startCursor);
-            var result = await db.RunQueryAsync(query);
-            return await ToPage(result, query);
+            var query = collection
+                .Find(new BsonDocument())
+                .Limit(limit)
+                .Skip(skip);
+            var resultTask = query.ToListAsync();
+            var countTask = query.CountDocumentsAsync();
+            await Task.WhenAll(resultTask, countTask);
+
+            return new ResultPage<T>(
+                resultTask.Result.Select(i => mapping.FromEntity(i)),
+                countTask.Result > skip + limit
+            );
         }
 
-        public async Task<ResultPage<T>> QueryAsync(IFilter<T> filter, string startCursor = null)
+        public async Task<ResultPage<T>> QueryAsync(IFilter<T> filter)
         {
-            var query = new Query(mapping.Name);
-            filter.ApplyTo(query, new FilterResolver(mapping));
-            if (startCursor != null)
-                query.StartCursor = ByteString.FromBase64(startCursor);
-            var result = await db.RunQueryAsync(query);
-            return await ToPage(result, query);
+            var resolver = new FilterResolver(mapping);
+            var filterDefinition = filter.CreateFilter(resolver);
+            var sortDefinition = filter.CreateSort(resolver);
+            var query = collection
+                .Find(filterDefinition)
+                .Sort(sortDefinition)
+                .Skip(filter.Skip)
+                .Limit(filter.Take);
+            var resultTask = query.ToListAsync();
+            var countTask = query.CountDocumentsAsync();
+            await Task.WhenAll(resultTask, countTask);
+
+            return new ResultPage<T>(
+                resultTask.Result.Select(i => mapping.FromEntity(i)),
+                countTask.Result > filter.Skip + filter.Take
+            );
         }
 
         public async Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value)
         {
             var member = expression.ExtractPropertyInfo();
-            var fieldName = mapping.GetFieldName(member).OrThrow(() => new ArgumentException($"Property {member.Name} not found"));
-            var query = new Query(mapping.Name) { Filter = Filter.Equal(fieldName, mapping.ConvertToValue(fieldName, value)) };
-            var result = await db.RunQueryAsync(query);
-            return await ToPage(result, query);
+            var fieldName = mapping.GetFieldName(member)
+                .OrThrow(() => new ArgumentException($"Property {member.Name} not found"));
+
+            var result = await collection
+                .Find(new BsonDocument(fieldName, mapping.ConvertToValue(fieldName, value)))
+                .ToListAsync();
+            return new ResultPage<T>(
+                result.Select(i => mapping.FromEntity(i)),
+                false
+            );
         }
 
         public async Task<Maybe<T>> FindByIdAsync(string id)
@@ -259,7 +272,7 @@ namespace Mongo.Repository.Impl
 
         internal class FilterResolver : IFieldResolver<T>
         {
-            private IEntityMapping<T> mapping;
+            private readonly IEntityMapping<T> mapping;
 
             public FilterResolver(IEntityMapping<T> mapping)
             {
