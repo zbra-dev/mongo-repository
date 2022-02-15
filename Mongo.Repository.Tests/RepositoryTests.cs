@@ -28,8 +28,8 @@ namespace Mongo.Repository.Tests
             mappings.Entity<RepoObj>().Infer(true).Build();
             mappings.Entity<OtherObj>().Infer(true).Build();
 
-            var myRepo = new Repository<RepoObj>(fixture.GetDb(), mappings);
-            var otherRepo = new Repository<OtherObj>(fixture.GetDb(), mappings);
+            var myRepo = new Repository<RepoObj>(fixture.Client, fixture.GetDb(), mappings);
+            var otherRepo = new Repository<OtherObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var obj = new RepoObj
             {
@@ -68,7 +68,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var repository = new Repository<IObj>(fixture.GetDb(), mappings);
+            var repository = new Repository<IObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var aId = repository.Insert(new AObj() { Name = "aaa" });
             var bId = repository.Insert(new AObj() { Name = "bbb" });
@@ -93,7 +93,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var repository = new Repository<AObj>(fixture.GetDb(), mappings);
+            var repository = new Repository<AObj>(fixture.Client, fixture.GetDb(), mappings);
 
             repository.Insert(new AObj() { Name = "aaa" });
             repository.Insert(new AObj() { Name = "bbb" });
@@ -128,7 +128,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var repository = new Repository<AObj>(fixture.GetDb(), mappings);
+            var repository = new Repository<AObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var values = Enumerable.Range(0, 10).ToArray();
             foreach (var i in values)
@@ -159,7 +159,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var repository = new Repository<AObj>(fixture.GetDb(), mappings);
+            var repository = new Repository<AObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var entities = Enumerable.Range(0, 10)
                 .Select(index => new AObj() { Name = "a", Value = index })
@@ -194,7 +194,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var repository = new Repository<BObj>(fixture.GetDb(), mappings);
+            var repository = new Repository<BObj>(fixture.Client, fixture.GetDb(), mappings);
             repository.Insert(new BObj { Name = "aaa".ToMaybe() });
             repository.Insert(new BObj { Name = "bbb".ToMaybe() });
 
@@ -209,7 +209,7 @@ namespace Mongo.Repository.Tests
             var mappings = new Mappings();
             mappings.Entity<RepoObj>().Infer(true).Build();
 
-            var repo = new Repository<RepoObj>(fixture.GetDb(), mappings);
+            var repo = new Repository<RepoObj>(fixture.Client, fixture.GetDb(), mappings);
             var id = await repo.InsertAsync(new RepoObj { Name = "a", Value = 10 });
 
             // deleting invalid key doesn't cause any errors in Datastore

@@ -18,7 +18,7 @@ namespace Mongo.Repository.Tests
             mappings.Entity<MapObj>()
                 .Infer(true)
                 .Build();
-            repository = new Repository<MapObj>(fixture.GetDb(), mappings);
+            repository = new Repository<MapObj>(fixture.Client, fixture.GetDb(), mappings);
             repository.Delete(repository.QueryAllAsync().Result.Entities);
         }
 

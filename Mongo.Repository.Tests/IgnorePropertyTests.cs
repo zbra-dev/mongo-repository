@@ -29,7 +29,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var myRepo = new Repository<IgnoreObj>(fixture.GetDb(), mappings);
+            var myRepo = new Repository<IgnoreObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var myObj = new IgnoreObj()
             {

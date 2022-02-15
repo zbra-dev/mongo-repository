@@ -30,7 +30,7 @@ namespace Mongo.Repository
 
         public MappingBuilder<T> Unique(Expression<Func<T, string>> uniqueProperty)
         {
-            if (uniqueProperty != null)
+            if (this.uniqueProperty != null)
                 throw new ArgumentException("Unique func already defined");
             this.uniqueProperty = uniqueProperty;
             return this;

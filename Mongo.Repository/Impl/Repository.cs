@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.IdGenerators;
 using MongoDB.Driver;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
@@ -12,12 +13,14 @@ namespace Mongo.Repository.Impl
 {
     public class Repository<T> : IRepository<T>
     {
+        private readonly IMongoClient client;
         private readonly IMongoCollection<BsonDocument> collection;
         private readonly IEntityMapping<T> mapping;
         private readonly IIdGenerator idGenerator;
 
-        public Repository(IMongoDatabase db, Mappings mappings)
+        public Repository(IMongoClient client, IMongoDatabase db, Mappings mappings)
         {
+            this.client = client;
             mapping = mappings.Get<T>();
             collection = db.GetCollection<BsonDocument>(mapping.Name);
             idGenerator = new ObjectIdGenerator();
@@ -108,17 +111,56 @@ namespace Mongo.Repository.Impl
                 throw new PersistenceException("Cannot insert instance that already has key set");
 
             var entities = instances.Select(i => mapping.ToEntity(i, CreateId)).ToArray();
-            await collection.InsertManyAsync(entities);
+            // TODO: transaction does not work...
+            // using var session = await client.StartSessionAsync();
+            try
+            {
+                await collection.InsertManyAsync(entities);
+                // await session.CommitTransactionAsync();
+            }
+            catch (MongoBulkWriteException ex)
+            {
+                // await session.AbortTransactionAsync();
+                if (mapping.UniqueProperty.HasValue
+                    && ex.WriteErrors.Any(e => e.Category == ServerErrorCategory.DuplicateKey))
+                {
+                    throw new UniqueConstraintException();
+                }
+                throw;
+            }
             return entities.Select(i => i["_id"].ToString()).ToArray();
         }
 
         public async Task UpdateAsync(params T[] instances)
         {
-            // TODO: OPTIMIZE (BULKWRITE?)
-            foreach (var instance in instances)
+            try
             {
-                var entity = mapping.ToEntity(instance);
-                await collection.ReplaceOneAsync(new BsonDocument("_id", new ObjectId(mapping.GetKeyValue(instance))), entity);
+                var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
+
+                foreach (var instance in instances)
+                {
+                    var id = mapping.GetKeyValue(instance);
+                    if (id == null)
+                        throw new PersistenceException("Cannot update an entity that has key null");
+                    var entity = mapping.ToEntity(instance);
+                    var a = new BsonDocument("_id", id);
+                    var replaceOneModel = new ReplaceOneModel<BsonDocument>(new BsonDocument("_id", new ObjectId(id)), entity);
+                    replaceOneModels.Add(replaceOneModel);
+                }
+
+                if (replaceOneModels.Count > 0)
+                {
+                    await collection.BulkWriteAsync(replaceOneModels);
+                }
+            }
+            catch (MongoBulkWriteException ex)
+            {
+                if (mapping.UniqueProperty.HasValue
+                    && ex.WriteErrors.Any(e => e.Category == ServerErrorCategory.DuplicateKey))
+                {
+                    throw new UniqueConstraintException();
+                }
+                throw;
             }
         }
 

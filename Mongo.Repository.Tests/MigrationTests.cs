@@ -22,7 +22,7 @@ namespace Mongo.Repository.Tests
             mappings.Entity<IntObj>("MyObj11WillBeUnique")
                 .Infer(true)
                 .Build();
-            var repository = new Repository<IntObj>(fixture.GetDb(), mappings);
+            var repository = new Repository<IntObj>(fixture.Client, fixture.GetDb(), mappings);
 
             // create legacy objects that will be migrated later
             var objs = new IntObj[]
@@ -40,7 +40,7 @@ namespace Mongo.Repository.Tests
                 .Unique(o => o.Unique)
                 .Infer(true)
                 .Build();
-            repository = new Repository<IntObj>(fixture.GetDb(), mappings);
+            repository = new Repository<IntObj>(fixture.Client, fixture.GetDb(), mappings);
 
             await repository.InsertAsync(new IntObj { Name = "Unique1", Unique = "c" });
 
@@ -68,7 +68,7 @@ namespace Mongo.Repository.Tests
             mappings.Entity<IntObj>("MyObj11WillBeUnique1")
                 .Infer(true)
                 .Build();
-            var repository = new Repository<IntObj>(fixture.GetDb(), mappings);
+            var repository = new Repository<IntObj>(fixture.Client, fixture.GetDb(), mappings);
 
             // create legacy objects that will be migrated later
             var objs = new IntObj[]
@@ -87,7 +87,7 @@ namespace Mongo.Repository.Tests
                 .Unique(o => o.Unique)
                 .Infer(true)
                 .Build();
-            repository = new Repository<IntObj>(fixture.GetDb(), mappings);
+            repository = new Repository<IntObj>(fixture.Client, fixture.GetDb(), mappings);
 
             // insert a duplicate
             var obj = new IntObj { Name = "Unique1", Unique = "b" };

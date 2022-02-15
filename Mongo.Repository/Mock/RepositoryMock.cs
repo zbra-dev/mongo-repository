@@ -25,6 +25,8 @@ namespace Mongo.Repository.Mock
         public RepositoryMock(Mappings mappings)
         {
             mapping = mappings.Get<T>();
+            if (mapping.UniqueProperty.HasValue)
+                throw new ArgumentException("RepositoryMock does not support mappings with unique constraint");
         }
 
         public RepositoryMock(Mappings mappings, T[] instances)

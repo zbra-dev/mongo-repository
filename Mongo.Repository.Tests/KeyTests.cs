@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Mongo.Repository.Impl;
+using System;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -24,7 +25,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var myRepo = new Repository<KeyObj>(fixture.GetDb(), mappings);
+            var myRepo = new Repository<KeyObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var myObj = new KeyObj
             {
@@ -43,7 +44,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var myRepo = new Repository<IdObj>(fixture.GetDb(), mappings);
+            var myRepo = new Repository<IdObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var myObj = new IdObj
             {
@@ -67,7 +68,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var myRepo = new Repository<KeyObj>(fixture.GetDb(), mappings);
+            var myRepo = new Repository<KeyObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var myObj = new KeyObj
             {
@@ -90,20 +91,20 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var myRepo = new Repository<IdObj>(fixture.GetDb(), mappings);
+            var myRepo = new Repository<IdObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var myObj = new IdObj
             {
                 Id = "888",
                 Name = "A"
             };
-            throw new System.Exception("IMPLEMENT THIS TEST");
-            // myRepo
-            //     .Awaiting(r => r.UpdateAsync(myObj))
-            //     .Should()
-            //     .Throw<RpcException>()
-            //     .Which.Message.Should()
-            //     .Contain("no entity to update");
+            //throw new System.Exception("IMPLEMENT THIS TEST");
+            myRepo
+                .Awaiting(r => r.UpdateAsync(myObj))
+                .Should()
+                .Throw<Exception>()
+                .Which.Message.Should()
+                .Contain("no entity to update");
         }
 
         [Fact]
@@ -114,7 +115,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var repo = new Repository<IdObj>(fixture.GetDb(), mappings);
+            var repo = new Repository<IdObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var obj = new IdObj { Name = "Bla" };
             await repo.InsertAsync(obj);
@@ -136,7 +137,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
 
-            var repo = new Repository<KeyObj>(fixture.GetDb(), mappings);
+            var repo = new Repository<KeyObj>(fixture.Client, fixture.GetDb(), mappings);
 
             var obj = new KeyObj { Name = "Bla" };
             await repo.InsertAsync(obj);

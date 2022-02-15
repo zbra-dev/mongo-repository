@@ -33,8 +33,7 @@ namespace Mongo.Repository.Tests
                 .Property(e => e.Data, hasPublicSetter: false)
                 .Infer(true)
                 .Build();
-            var repository = new Repository<NoSetter>(fixture.GetDb(), mappings);
-            //repository.Delete(repository.QueryAll().Entities);
+            var repository = new Repository<NoSetter>(fixture.Client, fixture.GetDb(), mappings);
 
             var noSetter = new NoSetter();
             noSetter.ChangeData();
@@ -45,7 +44,7 @@ namespace Mongo.Repository.Tests
             await repository.InsertAsync(new NoSetter());
 
             var records = await mongoDb.QueryAllAsync();
-            records.First()["val"].AsInt64.Should().Be(0);
+            records.First()["val"].AsInt32.Should().Be(0);
             records.First()["data"].AsString.Should().Be("b");
 
             var result = await repository.QueryAsync(new NoSetterStringQuery { Value = "a" });
@@ -101,7 +100,7 @@ namespace Mongo.Repository.Tests
                 .Property(e => e.DateTime, hasPublicSetter: false)
                 .Infer(true)
                 .Build();
-            var repository = new Repository<PrivateSetterDate>(fixture.GetDb(), mappings);
+            var repository = new Repository<PrivateSetterDate>(fixture.Client, fixture.GetDb(), mappings);
             repository.Delete(repository.QueryAll().Entities);
 
             var privateSetterDate = new PrivateSetterDate();
@@ -134,7 +133,7 @@ namespace Mongo.Repository.Tests
                 .Property(e => e.DateTime, e => DateTime.Parse(e), e => e.ToString())
                 .Infer(true)
                 .Build();
-            var repository = new Repository<PrivateSetterDate>(fixture.GetDb(), mappings);
+            var repository = new Repository<PrivateSetterDate>(fixture.Client, fixture.GetDb(), mappings);
             repository.Delete(repository.QueryAll().Entities);
 
             var privateSetterDate = new PrivateSetterDate();

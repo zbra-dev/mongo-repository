@@ -19,6 +19,8 @@ namespace Mongo.Repository.Impl
             new DelegateValueConverter(typeof(long?), v => (long?)v, o => (long?)o),
             new DelegateValueConverter(typeof(double), v => (double)v, o => (double)o),
             new DelegateValueConverter(typeof(double?), v => (double?)v, o => (double?)o),
+            new DelegateValueConverter(typeof(decimal), v => (decimal)v, o => (decimal)o),
+            new DelegateValueConverter(typeof(decimal?), v => (decimal?)v, o => (decimal?)o),
             new DelegateValueConverter(typeof(bool), v => (bool)v, o => (bool)o),
             new DelegateValueConverter(typeof(bool?), v => (bool?)v, o => (bool?)o),
             new DelegateValueConverter(typeof(byte), v => (byte)v, o => (byte)o),

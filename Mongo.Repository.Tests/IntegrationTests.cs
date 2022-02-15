@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Mongo.Repository.Tests
 {
-    [Collection("DatastoreCollection")]
+    [Collection("MongoCollection")]
     public class IntegrationTests
     {
         private readonly Repository<IntObj> repository;
@@ -18,7 +18,7 @@ namespace Mongo.Repository.Tests
                 .Unique(o => o.Unique)
                 .Infer(true)
                 .Build();
-            repository = new Repository<IntObj>(fixture.GetDb(), mappings);
+            repository = new Repository<IntObj>(fixture.Client, fixture.GetDb(), mappings);
             repository.Delete(repository.QueryAllAsync().Result.Entities);
         }
 
@@ -182,22 +182,6 @@ namespace Mongo.Repository.Tests
             result = await repository.QueryAllAsync();
             result.Entities.Should().HaveCount(3);
             result.Entities.Select(e => e.Unique).Distinct().Should().BeEquivalentTo(new[] { "a", "b", "c" });
-        }
-
-        [Fact]
-        public async void DeleteByKeyWithUnique()
-        {
-            var objs = new IntObj[]
-            {
-                new IntObj { Name = "myobj1", Unique = "a" },
-                new IntObj { Name = "myobj2", Unique = "b" }
-            };
-            var ids = await repository.InsertAsync(objs);
-
-            repository
-                .Awaiting(r => r.DeleteAsync(ids[0]))
-                .Should()
-                .ThrowExactly<InvalidOperationException>();
         }
 
         public class IntObj

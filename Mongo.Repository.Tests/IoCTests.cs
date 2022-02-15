@@ -13,14 +13,21 @@ namespace Mongo.Repository.Tests
     [Collection("MongoCollection")]
     public class IoCTests
     {
+        private readonly MongoFixture fixture;
+
         public IoCTests(MongoFixture fixture)
         {
+            this.fixture = fixture;
         }
 
         [Fact]
         public async void GetMongoDb_Success()
         {
-            var config = new Fixture().Create<MongoConfig>();
+            var config = new MongoConfig
+            {
+                ConnString = fixture.ConnectionString,
+                DatabaseName = "foo"
+            };
             var mappings = new Mappings();
             mappings.Entity<MyObjY>().Infer(true).Build();
             var provider = new ServiceCollection()

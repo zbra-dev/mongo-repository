@@ -1,14 +1,16 @@
 using DockerComposeFixture;
 using MongoDB.Driver;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Mongo.Repository.Tests
 {
-    [CollectionDefinition("DatastoreCollection")]
+    [CollectionDefinition("MongoCollection")]
     public class MongoCollection : ICollectionFixture<MongoFixture>
     {
         // This class has no code, and is never created. Its purpose is simply
@@ -18,23 +20,34 @@ namespace Mongo.Repository.Tests
 
     public class MongoFixture : DockerFixture, IDisposable
     {
+        private const string DockerCompose = @"
+version: '2'
+
+services:
+    mongo:
+        image: mongo
+        environment:
+        - MONGO_INITDB_ROOT_USERNAME=root
+        - MONGO_INITDB_ROOT_PASSWORD=dummy
+        ports:
+        - '27018:27017'";
         private const string databaseName = "test";
         private string dockerComposeFile;
+
+        private readonly Lazy<IMongoClient> mongoClient;
+
+        public IMongoClient Client => mongoClient.Value;
+        public string ConnectionString => "mongodb://root:dummy@localhost:27018/";
 
         public MongoFixture(IMessageSink output)
             : base(output)
         {
+            mongoClient = new Lazy<IMongoClient>(GetClient);
+
             InitOnce(() =>
             {
                 dockerComposeFile = Path.GetTempFileName();
-
-                var dockerComposeFileStream = GetType().Assembly
-                    .GetManifestResourceStream("Mongo.Repository.Tests.mongo-docker-compose.yaml")
-                    ?? throw new Exception("Embedded resource for docker compose file is missing");
-
-                using var fileStream = File.Create(dockerComposeFile);
-
-                dockerComposeFileStream.CopyTo(fileStream);
+                File.WriteAllText(dockerComposeFile, DockerCompose);
 
                 return new DockerFixtureOptions
                 {
@@ -49,16 +62,24 @@ namespace Mongo.Repository.Tests
             var db = GetDb();
             var collections = db.ListCollectionNames().ToList();
 
+            var tasks = new Task[0];
             foreach(var collection in collections)
             {
-                db.DropCollection(collection);
+                var task = db.DropCollectionAsync(collection);
+                tasks.Append(task);
             }
+
+            Task.WaitAll(tasks);
         }
 
         public IMongoDatabase GetDb()
         {
-            var client = new MongoClient("mongodb://root:dummy@localhost:27018/");
-            return client.GetDatabase(databaseName);
+            return Client.GetDatabase(databaseName);
+        }
+
+        private IMongoClient GetClient()
+        {
+            return new MongoClient(ConnectionString);
         }
 
         public override void Dispose()
