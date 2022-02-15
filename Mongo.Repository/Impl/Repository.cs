@@ -12,14 +12,12 @@ namespace Mongo.Repository.Impl
 {
     public class Repository<T> : IRepository<T>
     {
-        private readonly IMongoClient client;
         private readonly IMongoCollection<BsonDocument> collection;
         private readonly IEntityMapping<T> mapping;
         private readonly IIdGenerator idGenerator;
 
-        public Repository(IMongoClient client, IMongoDatabase db, Mappings mappings)
+        public Repository(IMongoDatabase db, Mappings mappings)
         {
-            this.client = client;
             mapping = mappings.Get<T>();
             collection = db.GetCollection<BsonDocument>(mapping.Name);
             idGenerator = new ObjectIdGenerator();

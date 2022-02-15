@@ -1,4 +1,5 @@
 using DockerComposeFixture;
+using MongoDB.Driver;
 using System;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,7 @@ namespace Mongo.Repository.Tests
 
     public class MongoFixture : DockerFixture, IDisposable
     {
+        private const string databaseName = "test";
         private string dockerComposeFile;
 
         public MongoFixture(IMessageSink output)
@@ -27,7 +29,7 @@ namespace Mongo.Repository.Tests
                 dockerComposeFile = Path.GetTempFileName();
 
                 var dockerComposeFileStream = GetType().Assembly
-                    .GetManifestResourceStream("PricingSimulator.API.Test.mongo-docker-compose.yaml")
+                    .GetManifestResourceStream("Mongo.Repository.Tests.mongo-docker-compose.yaml")
                     ?? throw new Exception("Embedded resource for docker compose file is missing");
 
                 using var fileStream = File.Create(dockerComposeFile);
@@ -42,16 +44,22 @@ namespace Mongo.Repository.Tests
             });
         }
 
-        public string GetConnectionString()
+        public void ClearData()
         {
-            return "mongodb://root:dummy@localhost:27018/";
+            var db = GetDb();
+            var collections = db.ListCollectionNames().ToList();
+
+            foreach(var collection in collections)
+            {
+                db.DropCollection(collection);
+            }
         }
 
-        // public IMongoDatabase GetDb(string databaseName)
-        // {
-        //     var client = new MongoClient("mongodb://root:dummy@mongo:27017/");
-        //     return client.GetDatabase(databaseName);
-        // }
+        public IMongoDatabase GetDb()
+        {
+            var client = new MongoClient("mongodb://root:dummy@localhost:27018/");
+            return client.GetDatabase(databaseName);
+        }
 
         public override void Dispose()
         {

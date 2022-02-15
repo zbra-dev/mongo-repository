@@ -4,12 +4,12 @@ using Xunit;
 
 namespace Mongo.Repository.Tests
 {
-    [Collection("DatastoreCollection")]
+    [Collection("MongoCollection")]
     public class IgnorePropertyTests
     {
-        private DatastoreFixture fixture;
+        private readonly MongoFixture fixture;
 
-        public IgnorePropertyTests(DatastoreFixture fixture)
+        public IgnorePropertyTests(MongoFixture fixture)
         {
             this.fixture = fixture;
         }

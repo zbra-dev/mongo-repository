@@ -1,17 +1,16 @@
-using Mongo.Repository.Impl;
 using FluentAssertions;
-using Grpc.Core;
+using Mongo.Repository.Impl;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace Mongo.Repository.Tests
 {
-    [Collection("DatastoreCollection")]
+    [Collection("MongoCollection")]
     public class KeyTests
     {
-        private DatastoreFixture fixture;
+        private readonly MongoFixture fixture;
 
-        public KeyTests(DatastoreFixture fixture)
+        public KeyTests(MongoFixture fixture)
         {
             this.fixture = fixture;
         }
@@ -98,12 +97,13 @@ namespace Mongo.Repository.Tests
                 Id = "888",
                 Name = "A"
             };
-            myRepo
-                .Awaiting(r => r.UpdateAsync(myObj))
-                .Should()
-                .Throw<RpcException>()
-                .Which.Message.Should()
-                .Contain("no entity to update");
+            throw new System.Exception("IMPLEMENT THIS TEST");
+            // myRepo
+            //     .Awaiting(r => r.UpdateAsync(myObj))
+            //     .Should()
+            //     .Throw<RpcException>()
+            //     .Which.Message.Should()
+            //     .Contain("no entity to update");
         }
 
         [Fact]

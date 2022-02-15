@@ -7,12 +7,12 @@ using Xunit;
 
 namespace Mongo.Repository.Tests
 {
-    [Collection("DatastoreCollection")]
+    [Collection("MongoCollection")]
     public class MapTests
     {
-        private Repository<MapObj> repository;
+        private readonly Repository<MapObj> repository;
 
-        public MapTests(DatastoreFixture fixture)
+        public MapTests(MongoFixture fixture)
         {
             var mappings = new Mappings();
             mappings.Entity<MapObj>()

@@ -11,7 +11,7 @@ namespace Mongo.Repository.Tests
     {
         private readonly Repository<IntObj> repository;
 
-        public IntegrationTests(DatastoreFixture fixture)
+        public IntegrationTests(MongoFixture fixture)
         {
             var mappings = new Mappings();
             mappings.Entity<IntObj>("MyObj11")

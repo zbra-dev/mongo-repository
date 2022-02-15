@@ -1,23 +1,21 @@
-using Mongo.Repository.Impl;
 using FluentAssertions;
-using Google.Cloud.Mongo.V1;
+using Mongo.Repository.Impl;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using System;
-using System.Globalization;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using ZBRA.Commons;
-using static Google.Cloud.Mongo.V1.PropertyOrder.Types;
 
 namespace Mongo.Repository.Tests
 {
-    [Collection("DatastoreCollection")]
+    [Collection("MongoCollection")]
     public class RepositoryTests
     {
-        private DatastoreFixture fixture;
+        private readonly MongoFixture fixture;
 
-        public RepositoryTests(DatastoreFixture fixture)
+        public RepositoryTests(MongoFixture fixture)
         {
             this.fixture = fixture;
             fixture.ClearData();
@@ -175,12 +173,14 @@ namespace Mongo.Repository.Tests
             firstQueryResult.Entities.Should().HaveCount(4);
             firstQueryResult.HasMoreResults.Should().BeTrue();
 
-            var secondQueryResult = await repository.QueryAsync(filter, firstQueryResult.NextCursor);
+            filter.Skip = 4;
+            var secondQueryResult = await repository.QueryAsync(filter);
 
             secondQueryResult.Entities.Should().HaveCount(4);
             secondQueryResult.HasMoreResults.Should().BeTrue();
 
-            var finalQueryResult = await repository.QueryAsync(filter, secondQueryResult.NextCursor);
+            filter.Skip = 8;
+            var finalQueryResult = await repository.QueryAsync(filter);
 
             finalQueryResult.Entities.Should().HaveCount(2);
             finalQueryResult.HasMoreResults.Should().BeFalse();
@@ -201,66 +201,6 @@ namespace Mongo.Repository.Tests
             var result = repository.Query(o => o.Name, "aaa".ToMaybe());
             Assert.Single(result.Entities);
             Assert.True(result.Entities.Single(o => o.Name.Is("aaa")) != null);
-        }
-
-        [Fact]
-        public void ExcludeFromIndexesFieldNameTest()
-        {
-            var mappings = new Mappings();
-            mappings.Entity<LongTextPropertyObj>("LongText")
-                .Property(o => o.LongText, excludeFromIndexes: true)
-                .Infer(true)
-                .Build();
-
-            var db = fixture.GetDb();
-            var repository = new Repository<LongTextPropertyObj>(db, mappings);
-            var instance = new LongTextPropertyObj();
-            repository.Insert(instance);
-
-            var result = db.RunQuery(new Query("LongText"));
-            var entity = result.Entities.Single();
-            Assert.False(entity.Properties["smallText"].ExcludeFromIndexes);
-            Assert.True(entity.Properties["longText"].ExcludeFromIndexes);
-        }
-
-        [Fact]
-        public void RepositoryOperations_WithDecimalProperties_ShouldUseInvariantCulture()
-        {
-            var mappings = new Mappings();
-            mappings.Entity<DecimalObj>()
-                .Infer(true)
-                .Build();
-
-            var repository = new Repository<DecimalObj>(fixture.GetDb(), mappings);
-
-            var decimalValue = 10.5m;
-
-            var dotSeparatedCulture = CultureInfo.InvariantCulture;
-            var commaSeparatedCulture = new CultureInfo("pt-BR");
-
-            var task = new Task(() =>
-            {
-                // Ensure that culture change actually works
-                Thread.CurrentThread.CurrentCulture = commaSeparatedCulture;
-                var number = decimal.Parse("1,1");
-                number.Should().Be(1.1m);
-
-                // FindById with comma separated culture
-                Thread.CurrentThread.CurrentCulture = dotSeparatedCulture;
-                var id = repository.Insert(new DecimalObj { Data = decimalValue });
-
-                Thread.CurrentThread.CurrentCulture = commaSeparatedCulture;
-                repository.FindById(id).Value.Data.Should().Be(decimalValue);
-
-                // Insert with comma separated culture
-                Thread.CurrentThread.CurrentCulture = commaSeparatedCulture;
-                id = repository.Insert(new DecimalObj { Data = decimalValue });
-
-                Thread.CurrentThread.CurrentCulture = dotSeparatedCulture;
-                repository.FindById(id).Value.Data.Should().Be(decimalValue);
-            });
-            task.Start();
-            task.Wait();
         }
 
         [Fact]
@@ -323,10 +263,13 @@ namespace Mongo.Repository.Tests
             public string PropertyName { get; set; }
             public string Value { get; set; }
 
-            public void ApplyTo(Query query, IFieldResolver<IObj> resolver)
+            public int? Take => null;
+            public int? Skip => null;
+
+            public FilterDefinition<BsonDocument> CreateFilter(IFieldResolver<IObj> resolver)
             {
                 var name = resolver.FieldName(PropertyName);
-                query.Filter = Filter.Equal(name, Value);
+                return Builders<BsonDocument>.Filter.Eq(name, Value);
             }
         }
 
@@ -339,23 +282,24 @@ namespace Mongo.Repository.Tests
             public string OrderBy { get; set; }
             public bool Ascending { get; set; } = true;
 
-            public void ApplyTo(Query query, IFieldResolver<AObj> resolver)
+            public FilterDefinition<BsonDocument> CreateFilter(IFieldResolver<AObj> resolver)
             {
-                if (PropertyName != null)
+                if (PropertyName == null)
                 {
-                    var name = resolver.FieldName(PropertyName);
-                    query.Filter = Filter.Equal(name, Value);
+                    return Builders<BsonDocument>.Filter.Empty;
                 }
-                query.Limit = Take;
-                query.Offset = Skip ?? 0;
-                if (OrderBy != null)
-                {
-                    query.Order.Add(new PropertyOrder
-                    {
-                        Property = new PropertyReference { Name = resolver.FieldName(OrderBy) },
-                        Direction = Ascending ? Direction.Ascending : Direction.Descending
-                    });
-                }
+                var name = resolver.FieldName(PropertyName);
+                return Builders<BsonDocument>.Filter.Eq(name, Value);
+                throw new NotImplementedException();
+            }
+
+            public SortDefinition<BsonDocument> CreateSort(IFieldResolver<AObj> resolver)
+            {
+                // TODO: HANDLER ORDERBY NULL
+                var name = resolver.FieldName(OrderBy);
+                return Ascending
+                    ? Builders<BsonDocument>.Sort.Ascending(name)
+                    : Builders<BsonDocument>.Sort.Descending(name);
             }
         }
 
@@ -384,14 +328,6 @@ namespace Mongo.Repository.Tests
         {
             public string Id { get; set; }
             public string Name { get; set; }
-        }
-
-        private class LongTextPropertyObj : IObj
-        {
-            public string Id { get; set; }
-            public string Name { get; set; }
-            public string SmallText { get; set; }
-            public string LongText { get; set; }
         }
     }
 }

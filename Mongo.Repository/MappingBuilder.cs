@@ -125,8 +125,8 @@ namespace Mongo.Repository
 
     public class MappingBuilder<T, U> where U : T
     {
-        private Mappings mappings;
-        private string entityName;
+        private readonly Mappings mappings;
+        private readonly string entityName;
         private Func<T, U> toConcreteFunc;
 
         public MappingBuilder(Mappings mappings, string entityName = null)

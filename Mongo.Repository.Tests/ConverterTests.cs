@@ -5,12 +5,12 @@ using Xunit;
 
 namespace Mongo.Repository.Tests
 {
-    [Collection("DatastoreCollection")]
+    [Collection("MongoCollection")]
     public class ConverterTests
     {
-        private Repository<PrimitiveObj> repository;
+        private readonly Repository<PrimitiveObj> repository;
 
-        public ConverterTests(DatastoreFixture fixture)
+        public ConverterTests(MongoFixture fixture)
         {
             var mappings = new Mappings();
             mappings.Entity<PrimitiveObj>()

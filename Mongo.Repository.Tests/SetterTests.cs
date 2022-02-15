@@ -1,7 +1,7 @@
-using Mongo.Repository.Impl;
 using FluentAssertions;
-using Google.Cloud.Mongo.V1;
-using Google.Protobuf.WellKnownTypes;
+using Mongo.Repository.Impl;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using System;
 using System.Globalization;
 using System.Linq;
@@ -10,19 +10,19 @@ using Xunit;
 
 namespace Mongo.Repository.Tests
 {
-    [Collection("DatastoreCollection")]
+    [Collection("MongoCollection")]
     public class SetterTests
     {
-        private readonly DatastoreFixture fixture;
-        private readonly DatastoreDb datastoreDb;
+        private readonly MongoFixture fixture;
+        private readonly IMongoDatabase mongoDb;
         private readonly Mappings mappings;
 
-        public SetterTests(DatastoreFixture fixture)
+        public SetterTests(MongoFixture fixture)
         {
             this.fixture = fixture;
-            this.mappings = new Mappings();
+            mappings = new Mappings();
 
-            datastoreDb = fixture.GetDb();
+            mongoDb = fixture.GetDb();
             fixture.ClearData();
         }
 
@@ -34,7 +34,7 @@ namespace Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
             var repository = new Repository<NoSetter>(fixture.GetDb(), mappings);
-            repository.Delete(repository.QueryAll().Entities);
+            //repository.Delete(repository.QueryAll().Entities);
 
             var noSetter = new NoSetter();
             noSetter.ChangeData();
@@ -44,9 +44,9 @@ namespace Mongo.Repository.Tests
 
             await repository.InsertAsync(new NoSetter());
 
-            var records = await datastoreDb.QueryAllAsync();
-            records.First()["val"].IntegerValue.Should().Be(0);
-            records.First()["data"].StringValue.Should().Be("b");
+            var records = await mongoDb.QueryAllAsync();
+            records.First()["val"].AsInt64.Should().Be(0);
+            records.First()["data"].AsString.Should().Be("b");
 
             var result = await repository.QueryAsync(new NoSetterStringQuery { Value = "a" });
             result.Entities.Should().ContainSingle();
@@ -112,14 +112,14 @@ namespace Mongo.Repository.Tests
 
             await repository.InsertAsync(new PrivateSetterDate());
 
-            var records = await datastoreDb.QueryAllAsync();
-            records.First()["dateTime"].TimestampValue.Should().Be(day17.ToTimestamp());
+            var records = await mongoDb.QueryAllAsync();
+            records.First()["dateTime"].AsBsonDateTime.Should().Be(new BsonDateTime(day17));
 
-            var result = await repository.QueryAsync(new PrivateSetterDateTimestampQuery { Value = day16.ToTimestamp() });
+            var result = await repository.QueryAsync(new PrivateSetterDateTimeQuery { Value = new BsonDateTime(day16) });
             result.Entities.Should().ContainSingle();
             result.Entities.First().DateTime.Should().Be(day16);
 
-            result = await repository.QueryAsync(new PrivateSetterDateTimestampQuery { Value = day17.ToTimestamp() });
+            result = await repository.QueryAsync(new PrivateSetterDateTimeQuery { Value = new BsonDateTime(day17) });
             result.Entities.Should().ContainSingle();
             result.Entities.First().DateTime.Should().Be(day17);
         }
@@ -145,8 +145,8 @@ namespace Mongo.Repository.Tests
 
             await repository.InsertAsync(new PrivateSetterDate());
 
-            var records = await datastoreDb.QueryAllAsync();
-            records.First()["dateTime"].StringValue.Should().Be(day17.ToString());
+            var records = await mongoDb.QueryAllAsync();
+            records.First()["dateTime"].AsString.Should().Be(day17.ToString());
 
             var result = await repository.QueryAsync(new PrivateSetterDateStringQuery { Value = day16.ToString() });
             result.Entities.Should().ContainSingle();
@@ -212,9 +212,13 @@ namespace Mongo.Repository.Tests
         {
             public string Value { get; set; }
 
-            public void ApplyTo(Query query, IFieldResolver<NoSetter> resolver)
+            public int? Take => null;
+            public int? Skip => null;
+
+            public FilterDefinition<BsonDocument> CreateFilter(IFieldResolver<NoSetter> resolver)
             {
-                query.Filter = Filter.Equal(resolver.FieldName(s => s.Data), Value);
+                var name = resolver.FieldName(s => s.Data);
+                return Builders<BsonDocument>.Filter.Eq(name, Value);
             }
         }
 
@@ -222,19 +226,30 @@ namespace Mongo.Repository.Tests
         {
             public string Value { get; set; }
 
-            public void ApplyTo(Query query, IFieldResolver<PrivateSetterDate> resolver)
+            public int? Take => null;
+
+            public int? Skip => null;
+
+            public FilterDefinition<BsonDocument> CreateFilter(IFieldResolver<PrivateSetterDate> resolver)
             {
-                query.Filter = Filter.Equal(resolver.FieldName(s => s.DateTime), Value);
+                var name = resolver.FieldName(s => s.DateTime);
+                return Builders<BsonDocument>.Filter.Eq(name, Value);
             }
         }
 
-        public class PrivateSetterDateTimestampQuery : IFilter<PrivateSetterDate>
+        public class PrivateSetterDateTimeQuery : IFilter<PrivateSetterDate>
         {
-            public Timestamp Value { get; set; }
+            public BsonDateTime Value { get; set; }
 
-            public void ApplyTo(Query query, IFieldResolver<PrivateSetterDate> resolver)
+            public int? Take => null;
+
+            public int? Skip => null;
+
+            public FilterDefinition<BsonDocument> CreateFilter(IFieldResolver<PrivateSetterDate> resolver)
             {
-                query.Filter = Filter.Equal(resolver.FieldName(s => s.DateTime), Value);
+                var name = resolver.FieldName(s => s.DateTime);
+                return Builders<BsonDocument>.Filter.Eq(name, Value);
+                throw new NotImplementedException();
             }
         }
     }

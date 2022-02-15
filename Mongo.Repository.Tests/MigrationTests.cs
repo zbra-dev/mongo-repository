@@ -8,9 +8,9 @@ namespace Mongo.Repository.Tests
     [Collection("DatastoreCollection")]
     public class MigrationTests
     {
-        private readonly DatastoreFixture fixture;
+        private readonly MongoFixture fixture;
 
-        public MigrationTests(DatastoreFixture fixture)
+        public MigrationTests(MongoFixture fixture)
         {
             this.fixture = fixture;
         }

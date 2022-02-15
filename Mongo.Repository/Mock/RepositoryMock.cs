@@ -17,8 +17,6 @@ namespace Mongo.Repository.Mock
     /// </summary>
     public class RepositoryMock<T> : IRepository<T>
     {
-        private static readonly string[] KeyPropertyNames = new[] { "id", "key" };
-
         private readonly Dictionary<string, BsonDocument> map = new Dictionary<string, BsonDocument>();
         private readonly IEntityMapping<T> mapping;
         private readonly Random random = new Random();

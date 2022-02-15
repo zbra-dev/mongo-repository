@@ -1,7 +1,8 @@
+using AutoFixture;
 using FluentAssertions;
-using Google.Cloud.Mongo.V1;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,39 +10,28 @@ using Xunit;
 
 namespace Mongo.Repository.Tests
 {
-    [Collection("DatastoreCollection")]
+    [Collection("MongoCollection")]
     public class IoCTests
     {
-        public IoCTests(DatastoreFixture fixture)
+        public IoCTests(MongoFixture fixture)
         {
         }
 
         [Fact]
-        public async void GetDatastoreDb_Success()
+        public async void GetMongoDb_Success()
         {
-            Environment.SetEnvironmentVariable("DATASTORE_EMULATOR_HOST", "127.0.0.1:8081");
-            var inMemory = new Dictionary<string, string>()
-            {
-                { "Datastore:NamespaceId", "test" },
-                { "Datastore:ProjectId", "test-project" },
-            };
-
+            var config = new Fixture().Create<MongoConfig>();
             var mappings = new Mappings();
             mappings.Entity<MyObjY>().Infer(true).Build();
-            var configuration = new ConfigurationBuilder()
-                .AddEnvironmentVariables()
-                .AddInMemoryCollection(inMemory)
-                .Build();
             var provider = new ServiceCollection()
                 .AddSingleton(mappings)
-                .AddMongoRepository(configuration)
+                .AddMongoRepository(config)
                 .BuildServiceProvider();
 
-            var config = provider.GetService<MongoConfig>();
-            config.NamespaceId.Should().Be("test");
-            config.ProjectId.Should().Be("test-project");
+            var injectedConfig = provider.GetService<MongoConfig>();
+            injectedConfig.Should().BeEquivalentTo(config);
 
-            var db = provider.GetService<DatastoreDb>();
+            var db = provider.GetService<IMongoDatabase>();
             var entities = await db.QueryAllAsync();
             entities.Should().BeEmpty();
 
@@ -50,28 +40,6 @@ namespace Mongo.Repository.Tests
             var records = await repository.QueryAllAsync();
             records.Entities.Should().HaveCount(1);
             records.Entities.First().Value.Should().Be("1");
-        }
-
-        [Fact]
-        public void DatastoreNamespace_Override_Success()
-        {
-            Environment.SetEnvironmentVariable("DATASTORE_EMULATOR_HOST", "127.0.0.1:8081");
-            var inMemory = new Dictionary<string, string>()
-            {
-                { "Datastore:NamespaceId", "test" },
-                { "Datastore:ProjectId", "test-project" },
-                { "DatastoreNamespace", "test2" },
-            };
-
-            var configuration = new ConfigurationBuilder()
-                .AddEnvironmentVariables()
-                .AddInMemoryCollection(inMemory)
-                .Build();
-            var provider = new ServiceCollection()
-                .AddMongoRepository(configuration)
-                .BuildServiceProvider();
-            var config = provider.GetService<MongoConfig>();
-            config.NamespaceId.Should().Be("test2");
         }
 
         public class MyObjY
