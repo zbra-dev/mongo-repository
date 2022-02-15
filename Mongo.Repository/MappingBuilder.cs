@@ -16,8 +16,9 @@ namespace Mongo.Repository
         private readonly ValueConverterRepository valueConverterRepository;
         private readonly string entityName;
         private readonly Dictionary<string, PropertyMapping> propertyMap = new Dictionary<string, PropertyMapping>();
+        private readonly HashSet<string> ignoreList = new HashSet<string>();
         private KeyMapping keyMapping = null;
-        private Func<T, string> uniqueFunc = null;
+        private Expression<Func<T, string>> uniqueProperty = null;
         private EntityMigration<T> migration = null;
 
         public MappingBuilder(Mappings mappings, string entityName = null)
@@ -27,34 +28,36 @@ namespace Mongo.Repository
             this.entityName = entityName ?? typeof(T).Name;
         }
 
-        public MappingBuilder<T> Unique(Func<T, string> uniqueFunc)
+        public MappingBuilder<T> Unique(Expression<Func<T, string>> uniqueProperty)
         {
-            if (this.uniqueFunc != null)
+            if (uniqueProperty != null)
                 throw new ArgumentException("Unique func already defined");
-            this.uniqueFunc = uniqueFunc;
+            this.uniqueProperty = uniqueProperty;
             return this;
         }
 
-        public MappingBuilder<T> Property<P, Q>(Expression<Func<T, P>> expression, Func<Q, P> fromFunc, Func<P, Q> toFunc, string name = null, bool excludeFromIndexes = false)
+        public MappingBuilder<T> Property<P, Q>(Expression<Func<T, P>> expression, Func<Q, P> fromFunc, Func<P, Q> toFunc, string name = null)
         {
             var property = expression.ExtractPropertyInfo();
             var converter = valueConverterRepository.GetConverter(property.PropertyType, fromFunc, toFunc);
-            if (excludeFromIndexes)
-            {
-                converter = new ExcludeFromIndexesDecorator(converter);
-            }
 
             propertyMap.Add(property.Name, new PropertyMapping(converter, property, name));
             return this;
         }
 
-        public MappingBuilder<T> Property<P>(Expression<Func<T, P>> expression, string name = null, bool excludeFromIndexes = false, bool hasPublicSetter = true)
+        public MappingBuilder<T> Property<P>(Expression<Func<T, P>> expression, string name = null, bool hasPublicSetter = true)
         {
-            AddProperty(expression.ExtractPropertyInfo(), name, excludeFromIndexes, hasPublicSetter);
+            AddProperty(expression.ExtractPropertyInfo(), name, hasPublicSetter);
             return this;
         }
 
-        private void AddProperty(PropertyInfo property, string name = null, bool excludeFromIndexes = false, bool hasPublicSetter = true)
+        public MappingBuilder<T> Ignore<P>(Expression<Func<T, P>> expression)
+        {
+            ignoreList.Add(expression.ExtractPropertyInfo().Name);
+            return this;
+        }
+
+        private void AddProperty(PropertyInfo property, string name = null, bool hasPublicSetter = true)
         {
             var setMethodInfo = property.GetSetMethod(true);
             if (hasPublicSetter && (setMethodInfo == null || !setMethodInfo.IsPublic))
@@ -63,11 +66,6 @@ namespace Mongo.Repository
             }
 
             var converter = valueConverterRepository.GetConverter(property.PropertyType);
-            if (excludeFromIndexes)
-            {
-                converter = new ExcludeFromIndexesDecorator(converter);
-            }
-
             propertyMap.Add(property.Name, new PropertyMapping(converter, property, name));
         }
 
@@ -97,6 +95,7 @@ namespace Mongo.Repository
                         keyMapping = new KeyMapping(property);
                 }
                 else if (!propertyMap.ContainsKey(property.Name)
+                    && !ignoreList.Contains(property.Name)
                     && keyMapping?.Member.Name != property.Name)
                 {
                     try
@@ -120,7 +119,7 @@ namespace Mongo.Repository
 
         public void Build()
         {
-            mappings.Add(new EntityMapping<T>(entityName, propertyMap.Values.ToArray(), keyMapping, migration, uniqueFunc));
+            mappings.Add(new EntityMapping<T>(entityName, propertyMap.Values.ToArray(), keyMapping, migration, uniqueProperty));
         }
     }
 

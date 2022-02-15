@@ -34,10 +34,10 @@ namespace Mongo.Repository.Tests
                 .Build();
             var provider = new ServiceCollection()
                 .AddSingleton(mappings)
-                .AddDatastoreRepository(configuration)
+                .AddMongoRepository(configuration)
                 .BuildServiceProvider();
 
-            var config = provider.GetService<DatastoreConfig>();
+            var config = provider.GetService<MongoConfig>();
             config.NamespaceId.Should().Be("test");
             config.ProjectId.Should().Be("test-project");
 
@@ -68,9 +68,9 @@ namespace Mongo.Repository.Tests
                 .AddInMemoryCollection(inMemory)
                 .Build();
             var provider = new ServiceCollection()
-                .AddDatastoreRepository(configuration)
+                .AddMongoRepository(configuration)
                 .BuildServiceProvider();
-            var config = provider.GetService<DatastoreConfig>();
+            var config = provider.GetService<MongoConfig>();
             config.NamespaceId.Should().Be("test2");
         }
 

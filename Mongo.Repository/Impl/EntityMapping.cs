@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using ZBRA.Commons;
 
@@ -17,7 +18,7 @@ namespace Mongo.Repository.Impl
     internal interface IEntityMapping<T> : IEntityMapping
     {
         string Name { get; }
-        Maybe<Func<T, string>> UniqueProperty { get; }
+        Maybe<Expression<Func<T, string>>> UniqueProperty { get; }
 
         new T FromEntity(BsonDocument entity);
         BsonDocument ToEntity(T instance, Func<BsonDocument, ObjectId> keyFactory = null);
@@ -35,14 +36,14 @@ namespace Mongo.Repository.Impl
         private readonly EntityMigration<T> migration;
 
         public string Name { get; }
-        public Maybe<Func<T, string>> UniqueProperty { get; }
+        public Maybe<Expression<Func<T, string>>> UniqueProperty { get; }
 
         public EntityMapping(
             string name,
             PropertyMapping[] properties,
             KeyMapping keyMapping = null,
             EntityMigration<T> migration = null,
-            Func<T, string> uniqueProperty = null)
+            Expression<Func<T, string>> uniqueProperty = null)
         {
             Name = name;
             UniqueProperty = uniqueProperty.ToMaybe();
@@ -99,15 +100,15 @@ namespace Mongo.Repository.Impl
     {
         public string Name { get; }
 
-        public Maybe<Func<T, string>> UniqueProperty
+        public Maybe<Expression<Func<T, string>>> UniqueProperty
         {
             get
             {
                 return concreteMapping.UniqueProperty
-                    .Select(p =>
+                    .Select(e =>
                     {
-                        string unique(T o) => p(toConcreteFunc(o));
-                        return (Func<T, string>)unique;
+                        var p = Expression.Parameter(typeof(T));
+                        return Expression.Lambda<Func<T, string>>(Expression.Invoke(e, Expression.Convert(p, typeof(T))), p);
                     });
             }
         }
