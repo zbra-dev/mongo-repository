@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Mongo.Repository.Tests
 {
-    [Collection("DatastoreCollection")]
+    [Collection("MongoCollection")]
     public class MigrationTests
     {
         private readonly MongoFixture fixture;
@@ -61,6 +61,7 @@ namespace Mongo.Repository.Tests
             await repository.DeleteAsync(objs[1]);
         }
 
+        // TODO: NOT DOABLE IN MONGO, DELETE?
         [Fact]
         public async void VerifyMigrationWithDuplicates()
         {

@@ -98,7 +98,6 @@ namespace Mongo.Repository.Tests
                 Id = "888",
                 Name = "A"
             };
-            //throw new System.Exception("IMPLEMENT THIS TEST");
             myRepo
                 .Awaiting(r => r.UpdateAsync(myObj))
                 .Should()
