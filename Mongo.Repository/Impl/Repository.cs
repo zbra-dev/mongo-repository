@@ -111,16 +111,16 @@ namespace Mongo.Repository.Impl
                 throw new PersistenceException("Cannot insert instance that already has key set");
 
             var entities = instances.Select(i => mapping.ToEntity(i, CreateId)).ToArray();
-            // TODO: transaction does not work...
-            // using var session = await client.StartSessionAsync();
+            using var session = await client.StartSessionAsync();
+            session.StartTransaction();
             try
             {
                 await collection.InsertManyAsync(entities);
-                // await session.CommitTransactionAsync();
+                await session.CommitTransactionAsync();
             }
             catch (MongoBulkWriteException ex)
             {
-                // await session.AbortTransactionAsync();
+                await session.AbortTransactionAsync();
                 if (mapping.UniqueProperty.HasValue
                     && ex.WriteErrors.Any(e => e.Category == ServerErrorCategory.DuplicateKey))
                 {
@@ -143,7 +143,6 @@ namespace Mongo.Repository.Impl
                     if (id == null)
                         throw new PersistenceException("Cannot update an entity that has key null");
                     var entity = mapping.ToEntity(instance);
-                    var a = new BsonDocument("_id", id);
                     var replaceOneModel = new ReplaceOneModel<BsonDocument>(new BsonDocument("_id", new ObjectId(id)), entity);
                     replaceOneModels.Add(replaceOneModel);
                 }
