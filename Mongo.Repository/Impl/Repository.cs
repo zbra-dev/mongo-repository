@@ -118,16 +118,16 @@ namespace Mongo.Repository.Impl
                 throw new PersistenceException("Cannot insert instance that already has key set");
 
             var entities = instances.Select(i => mapping.ToEntity(i, CreateId)).ToArray();
-            //using var session = await client.StartSessionAsync();
-            //session.StartTransaction();
+            using var session = await client.StartSessionAsync();
+            session.StartTransaction();
             try
             {
-                await collection.InsertManyAsync(entities);
-                //await session.CommitTransactionAsync();
+                await collection.InsertManyAsync(session, entities);
+                await session.CommitTransactionAsync();
             }
             catch (MongoBulkWriteException ex)
             {
-                //await session.AbortTransactionAsync();
+                await session.AbortTransactionAsync();
                 if (mapping.UniqueProperty.HasValue
                     && ex.WriteErrors.Any(e => e.Category == ServerErrorCategory.DuplicateKey))
                 {

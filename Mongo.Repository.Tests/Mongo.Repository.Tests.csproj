@@ -22,4 +22,27 @@
     <ProjectReference Include="..\Mongo.Repository\Mongo.Repository.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="Mongo\docker-compose.yaml" />
+    <Content Include="Mongo\docker-compose.yaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Remove="Mongo\mongo-setup\Dockerfile" />
+    <Content Include="Mongo\mongo-setup\Dockerfile">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Remove="Mongo\mongo-setup\mongo-setup.js" />
+    <Content Include="Mongo\mongo-setup\mongo-setup.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Remove="Mongo\mongo-setup\mongo-setup.sh" />
+    <Content Include="Mongo\mongo-setup\mongo-setup.sh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Remove="Mongo\mongo-setup\wait-for-it.sh" />
+    <Content Include="Mongo\mongo-setup\wait-for-it.sh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

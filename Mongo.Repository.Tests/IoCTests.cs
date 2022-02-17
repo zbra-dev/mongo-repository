@@ -1,10 +1,6 @@
-using AutoFixture;
 using FluentAssertions;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 
