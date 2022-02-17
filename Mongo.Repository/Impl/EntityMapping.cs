@@ -18,7 +18,7 @@ namespace Mongo.Repository.Impl
     internal interface IEntityMapping<T> : IEntityMapping
     {
         string Name { get; }
-        Maybe<Expression<Func<T, string>>> UniqueProperty { get; }
+        PropertyInfo UniqueProperty { get; }
 
         new T FromEntity(BsonDocument entity);
         BsonDocument ToEntity(T instance, Func<BsonDocument, ObjectId> keyFactory = null);
@@ -36,17 +36,17 @@ namespace Mongo.Repository.Impl
         private readonly EntityMigration<T> migration;
 
         public string Name { get; }
-        public Maybe<Expression<Func<T, string>>> UniqueProperty { get; }
+        public PropertyInfo UniqueProperty { get; }
 
         public EntityMapping(
             string name,
             PropertyMapping[] properties,
             KeyMapping keyMapping = null,
             EntityMigration<T> migration = null,
-            Expression<Func<T, string>> uniqueProperty = null)
+            PropertyInfo uniqueProperty = null)
         {
             Name = name;
-            UniqueProperty = uniqueProperty.ToMaybe();
+            UniqueProperty = uniqueProperty;
             this.properties = properties;
             this.keyMapping = keyMapping;
             this.migration = migration;
@@ -99,19 +99,7 @@ namespace Mongo.Repository.Impl
     internal class EntityMapping<T, U> : IEntityMapping<T> where U : T
     {
         public string Name { get; }
-
-        public Maybe<Expression<Func<T, string>>> UniqueProperty
-        {
-            get
-            {
-                return concreteMapping.UniqueProperty
-                    .Select(e =>
-                    {
-                        var p = Expression.Parameter(typeof(T));
-                        return Expression.Lambda<Func<T, string>>(Expression.Invoke(e, Expression.Convert(p, typeof(T))), p);
-                    });
-            }
-        }
+        public PropertyInfo UniqueProperty => concreteMapping.UniqueProperty;
 
         private readonly IEntityMapping<U> concreteMapping;
         private readonly Func<T, U> toConcreteFunc;

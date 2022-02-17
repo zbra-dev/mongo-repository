@@ -24,19 +24,22 @@ namespace Mongo.Repository.Impl
             mapping = mappings.Get<T>();
             collection = db.GetCollection<BsonDocument>(mapping.Name);
             idGenerator = new ObjectIdGenerator();
+            CreateUniqueIndex();
+        }
 
-            mapping.UniqueProperty.Consume(p =>
-            {
-                var member = p.ExtractPropertyInfo();
-                var fieldName = mapping.GetFieldName(member)
-                    .OrThrow(() => new ArgumentException($"Property {member.Name} not found"));
+        private void CreateUniqueIndex()
+        {
+            if (mapping.UniqueProperty == null)
+                return;
+            
+            var fieldName = mapping.GetFieldName(mapping.UniqueProperty)
+                .OrThrow(() => new ArgumentException($"Property {mapping.UniqueProperty.Name} not found"));
 
-                var field = new StringFieldDefinition<BsonDocument>(fieldName);
-                var options = new CreateIndexOptions() { Unique = true };
-                var indexKeyDefinition = new IndexKeysDefinitionBuilder<BsonDocument>().Ascending(field);
-                var indexModel = new CreateIndexModel<BsonDocument>(indexKeyDefinition, options);
-                collection.Indexes.CreateOne(indexModel);
-            });
+            var field = new StringFieldDefinition<BsonDocument>(fieldName);
+            var options = new CreateIndexOptions() { Unique = true };
+            var indexKeyDefinition = new IndexKeysDefinitionBuilder<BsonDocument>().Ascending(field);
+            var indexModel = new CreateIndexModel<BsonDocument>(indexKeyDefinition, options);
+            collection.Indexes.CreateOne(indexModel);
         }
         
         private static bool IsDuplicateKeyError(MongoBulkWriteException ex) =>
@@ -48,23 +51,24 @@ namespace Mongo.Repository.Impl
             return (ObjectId)id;
         }
 
+        private ResultPage<T> ToPage(IList<BsonDocument> result, int? limit)
+        {
+            var records = result
+                .Take(limit ?? int.MaxValue)
+                .Select(i => mapping.FromEntity(i))
+                .ToArray();
+            return new ResultPage<T>(records, limit.HasValue && result.Count > limit.Value);
+        }
+
         public async Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null)
         {
-            var resultTask = collection
+            var result = await collection
                 .Find(new BsonDocument())
-                .Limit(limit)
+                .Limit((limit + 1) * -1) // take one extra record and tells the server to close the cursor afterwards
                 .Skip(skip)
                 .ToListAsync();
-            var countTask = collection
-                .Find(new BsonDocument())
-                .Skip(skip)
-                .CountDocumentsAsync();
-            await Task.WhenAll(resultTask, countTask);
 
-            return new ResultPage<T>(
-                resultTask.Result.Select(i => mapping.FromEntity(i)),
-                countTask.Result > limit
-            );
+            return ToPage(result, limit);
         }
 
         public async Task<ResultPage<T>> QueryAsync(IFilter<T> filter)
@@ -72,23 +76,14 @@ namespace Mongo.Repository.Impl
             var resolver = new FilterResolver(mapping);
             var filterDefinition = filter.CreateFilter(resolver);
             var sortDefinition = filter.CreateSort(resolver);
-            var resultTask = collection
+            var result = await collection
                 .Find(filterDefinition)
                 .Sort(sortDefinition)
                 .Skip(filter.Skip)
-                .Limit(filter.Take)
+                .Limit((filter.Take + 1) * -1) // take one extra record and tells the server to close the cursor afterwards
                 .ToListAsync();
-            var countTask = collection
-                .Find(filterDefinition)
-                .Sort(sortDefinition)
-                .Skip(filter.Skip)
-                .CountDocumentsAsync();
-            await Task.WhenAll(resultTask, countTask);
 
-            return new ResultPage<T>(
-                resultTask.Result.Select(i => mapping.FromEntity(i)),
-                countTask.Result > filter.Take
-            );
+            return ToPage(result, filter.Take);
         }
 
         public async Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value)
@@ -100,10 +95,8 @@ namespace Mongo.Repository.Impl
             var result = await collection
                 .Find(new BsonDocument(fieldName, mapping.ConvertToValue(fieldName, value)))
                 .ToListAsync();
-            return new ResultPage<T>(
-                result.Select(i => mapping.FromEntity(i)),
-                false
-            );
+
+            return new ResultPage<T>(result.Select(i => mapping.FromEntity(i)).ToArray());
         }
 
         public async Task<Maybe<T>> FindByIdAsync(string id)
@@ -131,7 +124,7 @@ namespace Mongo.Repository.Impl
             catch (Exception ex)
             {
                 await session.AbortTransactionAsync();
-                if (mapping.UniqueProperty.HasValue && IsDuplicateKeyError(ex as MongoBulkWriteException))
+                if (mapping.UniqueProperty != null && IsDuplicateKeyError(ex as MongoBulkWriteException))
                 {
                     throw new UniqueConstraintException();
                 }
@@ -168,7 +161,7 @@ namespace Mongo.Repository.Impl
             catch (Exception ex)
             {
                 await session.AbortTransactionAsync();
-                if (mapping.UniqueProperty.HasValue && IsDuplicateKeyError(ex as MongoBulkWriteException))
+                if (mapping.UniqueProperty != null && IsDuplicateKeyError(ex as MongoBulkWriteException))
                 {
                     throw new UniqueConstraintException();
                 }
@@ -205,7 +198,7 @@ namespace Mongo.Repository.Impl
             catch (Exception ex)
             {
                 await session.AbortTransactionAsync();
-                if (mapping.UniqueProperty.HasValue && IsDuplicateKeyError(ex as MongoBulkWriteException))
+                if (mapping.UniqueProperty != null && IsDuplicateKeyError(ex as MongoBulkWriteException))
                 {
                     throw new UniqueConstraintException();
                 }
@@ -227,7 +220,7 @@ namespace Mongo.Repository.Impl
                 await collection.DeleteManyAsync(session, filter);
                 await session.CommitTransactionAsync();
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 await session.AbortTransactionAsync();
                 throw;
@@ -247,7 +240,7 @@ namespace Mongo.Repository.Impl
                 await collection.DeleteManyAsync(session, filter);
                 await session.CommitTransactionAsync();
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 await session.AbortTransactionAsync();
                 throw;

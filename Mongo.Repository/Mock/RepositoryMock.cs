@@ -25,7 +25,7 @@ namespace Mongo.Repository.Mock
         public RepositoryMock(Mappings mappings)
         {
             mapping = mappings.Get<T>();
-            if (mapping.UniqueProperty.HasValue)
+            if (mapping.UniqueProperty != null)
                 throw new ArgumentException("RepositoryMock does not support mappings with unique constraint");
         }
 
@@ -79,7 +79,7 @@ namespace Mongo.Repository.Mock
         {
             var property = expression.ExtractPropertyInfo();
             var result = await QueryAllAsync();
-            return new ResultPage<T>(result.Entities.Where(v => Equals(property.GetValue(v), value)), result.HasMoreResults);
+            return new ResultPage<T>(result.Entities.Where(v => Equals(property.GetValue(v), value)).ToArray(), result.HasMoreResults);
         }
 
         public async Task UpdateAsync(params T[] instances)
@@ -123,8 +123,8 @@ namespace Mongo.Repository.Mock
             return map.MaybeGet(id).Select(e => mapping.FromEntity(e));
         }
 
-        public async Task<ResultPage<T>> QueryAllAsync() => new ResultPage<T>(map.Values.Select(i => mapping.FromEntity(i)));
-        public Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skup = null) => throw new NotImplementedException();
+        public async Task<ResultPage<T>> QueryAllAsync() => new ResultPage<T>(map.Values.Select(i => mapping.FromEntity(i)).ToArray());
+        public Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null) => throw new NotImplementedException();
         public async Task<string> InsertAsync(T instance) => (await InsertAsync(new[] { instance })).First();
         public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).First();
 

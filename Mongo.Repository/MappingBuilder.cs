@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using ZBRA.Maybe;
 
 namespace Mongo.Repository
 {
@@ -18,7 +17,7 @@ namespace Mongo.Repository
         private readonly Dictionary<string, PropertyMapping> propertyMap = new Dictionary<string, PropertyMapping>();
         private readonly HashSet<string> ignoreList = new HashSet<string>();
         private KeyMapping keyMapping = null;
-        private Expression<Func<T, string>> uniqueProperty = null;
+        private PropertyInfo uniqueProperty = null;
         private EntityMigration<T> migration = null;
 
         public MappingBuilder(Mappings mappings, string entityName = null)
@@ -28,11 +27,11 @@ namespace Mongo.Repository
             this.entityName = entityName ?? typeof(T).Name;
         }
 
-        public MappingBuilder<T> Unique(Expression<Func<T, string>> uniqueProperty)
+        public MappingBuilder<T> Unique<P>(Expression<Func<T, P>> propertyExpression)
         {
-            if (this.uniqueProperty != null)
+            if (uniqueProperty != null)
                 throw new ArgumentException("Unique func already defined");
-            this.uniqueProperty = uniqueProperty;
+            uniqueProperty = propertyExpression.ExtractPropertyInfo();
             return this;
         }
 
