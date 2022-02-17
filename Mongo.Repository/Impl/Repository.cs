@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using ZBRA.Commons;
+using ZBRA.Maybe;
 
 namespace Mongo.Repository.Impl
 {
@@ -47,17 +47,20 @@ namespace Mongo.Repository.Impl
 
         public async Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null)
         {
-            var query = collection
+            var resultTask = collection
                 .Find(new BsonDocument())
                 .Limit(limit)
-                .Skip(skip);
-            var resultTask = query.ToListAsync();
-            var countTask = query.CountDocumentsAsync();
+                .Skip(skip)
+                .ToListAsync();
+            var countTask = collection
+                .Find(new BsonDocument())
+                .Skip(skip)
+                .CountDocumentsAsync();
             await Task.WhenAll(resultTask, countTask);
 
             return new ResultPage<T>(
                 resultTask.Result.Select(i => mapping.FromEntity(i)),
-                countTask.Result > skip + limit
+                countTask.Result > limit
             );
         }
 
@@ -66,18 +69,22 @@ namespace Mongo.Repository.Impl
             var resolver = new FilterResolver(mapping);
             var filterDefinition = filter.CreateFilter(resolver);
             var sortDefinition = filter.CreateSort(resolver);
-            var query = collection
+            var resultTask = collection
                 .Find(filterDefinition)
                 .Sort(sortDefinition)
                 .Skip(filter.Skip)
-                .Limit(filter.Take);
-            var resultTask = query.ToListAsync();
-            var countTask = query.CountDocumentsAsync();
+                .Limit(filter.Take)
+                .ToListAsync();
+            var countTask = collection
+                .Find(filterDefinition)
+                .Sort(sortDefinition)
+                .Skip(filter.Skip)
+                .CountDocumentsAsync();
             await Task.WhenAll(resultTask, countTask);
 
             return new ResultPage<T>(
                 resultTask.Result.Select(i => mapping.FromEntity(i)),
-                countTask.Result > filter.Skip + filter.Take
+                countTask.Result > filter.Take
             );
         }
 
@@ -111,16 +118,16 @@ namespace Mongo.Repository.Impl
                 throw new PersistenceException("Cannot insert instance that already has key set");
 
             var entities = instances.Select(i => mapping.ToEntity(i, CreateId)).ToArray();
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
+            //using var session = await client.StartSessionAsync();
+            //session.StartTransaction();
             try
             {
                 await collection.InsertManyAsync(entities);
-                await session.CommitTransactionAsync();
+                //await session.CommitTransactionAsync();
             }
             catch (MongoBulkWriteException ex)
             {
-                await session.AbortTransactionAsync();
+                //await session.AbortTransactionAsync();
                 if (mapping.UniqueProperty.HasValue
                     && ex.WriteErrors.Any(e => e.Category == ServerErrorCategory.DuplicateKey))
                 {
@@ -165,19 +172,37 @@ namespace Mongo.Repository.Impl
 
         public async Task<Maybe<string>[]> UpsertAsync(params T[] instances)
         {
-            // TODO: OPTIMIZE (BULKWRITE?)
-            Maybe<string>[] results = new Maybe<string>[0];
-            foreach (var instance in instances)
+            try
             {
-                var entity = mapping.ToEntity(instance, CreateId);
-                var result = await collection.ReplaceOneAsync(
-                    new BsonDocument("_id", entity["_id"].AsObjectId),
-                    entity,
-                    new ReplaceOptions { IsUpsert = true });
-                results.Append(result.UpsertedId.ToMaybe().Select(i => i.ToString()));
-            }
+                var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
 
-            return results;
+                foreach (var instance in instances)
+                {
+                    var entity = mapping.ToEntity(instance, CreateId);
+                    var replaceOneModel = new ReplaceOneModel<BsonDocument>(new BsonDocument("_id", entity["_id"].AsObjectId), entity)
+                    {
+                        IsUpsert = true,
+                    };
+                    replaceOneModels.Add(replaceOneModel);
+                }
+
+                if (replaceOneModels.Count > 0)
+                {
+                    var result = await collection.BulkWriteAsync(replaceOneModels);
+                    return result.Upserts.Select(u => u.Id.ToMaybe().Select(i => i.ToString())).ToArray();
+                }
+
+                return new Maybe<string>[0];
+            }
+            catch (MongoBulkWriteException ex)
+            {
+                if (mapping.UniqueProperty.HasValue
+                    && ex.WriteErrors.Any(e => e.Category == ServerErrorCategory.DuplicateKey))
+                {
+                    throw new UniqueConstraintException();
+                }
+                throw;
+            }
         }
 
         public async Task DeleteAsync(params T[] instances)
@@ -194,7 +219,7 @@ namespace Mongo.Repository.Impl
             if (ids.Length == 0)
                 return;
 
-            var filter = Builders<BsonDocument>.Filter.In("_id", ids);
+            var filter = Builders<BsonDocument>.Filter.In("_id", ids.Select(id => new ObjectId(id)).ToArray());
             await collection.DeleteManyAsync(filter);
         }
 

@@ -61,53 +61,6 @@ namespace Mongo.Repository.Tests
             await repository.DeleteAsync(objs[1]);
         }
 
-        // TODO: NOT DOABLE IN MONGO, DELETE?
-        [Fact]
-        public async void VerifyMigrationWithDuplicates()
-        {
-            var mappings = new Mappings();
-            mappings.Entity<IntObj>("MyObj11WillBeUnique1")
-                .Infer(true)
-                .Build();
-            var repository = new Repository<IntObj>(fixture.Client, fixture.GetDb(), mappings);
-
-            // create legacy objects that will be migrated later
-            var objs = new IntObj[]
-            {
-                new IntObj { Name = "myobj1", Unique = "a" },
-                new IntObj { Name = "myobj2", Unique = "b" },
-                new IntObj { Name = "myobj3", Unique = "a" },
-            };
-            var ids = await repository.InsertAsync(objs);
-            for (var i = 0; i < ids.Length; ++i)
-                objs[i].Id = ids[i];
-
-            // change mapping to have a unique constraint
-            mappings = new Mappings();
-            mappings.Entity<IntObj>("MyObj11WillBeUnique1")
-                .Unique(o => o.Unique)
-                .Infer(true)
-                .Build();
-            repository = new Repository<IntObj>(fixture.Client, fixture.GetDb(), mappings);
-
-            // insert a duplicate
-            var obj = new IntObj { Name = "Unique1", Unique = "b" };
-            obj.Id = await repository.InsertAsync(obj);
-            await repository.UpdateAsync(objs[0]);
-            await repository.UpdateAsync(objs[0]);
-
-            repository
-                .Awaiting(r => r.UpdateAsync(objs[2]))
-                .Should()
-                .ThrowExactly<UniqueConstraintException>();
-
-            await repository.UpdateAsync(obj);
-            repository
-                .Awaiting(r => r.UpdateAsync(objs[1]))
-                .Should()
-                .ThrowExactly<UniqueConstraintException>();
-        }
-
         public class IntObj
         {
             public string Id { get; set; }

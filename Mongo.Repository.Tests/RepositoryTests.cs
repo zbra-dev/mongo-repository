@@ -6,7 +6,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
-using ZBRA.Commons;
+using ZBRA.Maybe;
 
 namespace Mongo.Repository.Tests
 {
@@ -132,12 +132,12 @@ namespace Mongo.Repository.Tests
 
             var values = Enumerable.Range(0, 10).ToArray();
             foreach (var i in values)
-                await repository.InsertAsync(new AObj() { Name = "a", Value = i });
+                await repository.InsertAsync(new AObj() { Name = "a", LastName = $"a{i}",  Value = i });
             (await repository.QueryAllAsync()).Entities.Should().HaveCount(10);
 
             var result = await repository.QueryAsync(new AObjFilter
             {
-                OrderBy = "Name",
+                OrderBy = "LastName",
                 PropertyName = "Name",
                 Value = "a",
                 Skip = skip,
@@ -212,10 +212,10 @@ namespace Mongo.Repository.Tests
             var repo = new Repository<RepoObj>(fixture.Client, fixture.GetDb(), mappings);
             var id = await repo.InsertAsync(new RepoObj { Name = "a", Value = 10 });
 
-            // deleting invalid key doesn't cause any errors in Datastore
-            await repo.DeleteAsync("12345");
+            // deleting invalid key doesn't cause any errors in Mongo
+            await repo.DeleteAsync(ObjectId.GenerateNewId().ToString());
 
-            (await repo.QueryAllAsync()).Entities.Should().HaveCount(1);
+            (await repo.QueryAllAsync()).Entities.Should().ContainSingle(e => e.Id == id);
 
             await repo.DeleteAsync(id);
 
@@ -237,6 +237,7 @@ namespace Mongo.Repository.Tests
         {
             public string Id { get; set; }
             public string Name { get; set; }
+            public string LastName { get; set; }
             public int Value { get; set; }
         }
 
@@ -295,7 +296,8 @@ namespace Mongo.Repository.Tests
 
             public SortDefinition<BsonDocument> CreateSort(IFieldResolver<AObj> resolver)
             {
-                // TODO: HANDLER ORDERBY NULL
+                if (string.IsNullOrEmpty(OrderBy))
+                    return null;
                 var name = resolver.FieldName(OrderBy);
                 return Ascending
                     ? Builders<BsonDocument>.Sort.Ascending(name)

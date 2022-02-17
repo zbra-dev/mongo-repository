@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Mongo.Repository.Impl;
+using MongoDB.Bson;
 using System;
 using System.Threading.Tasks;
 using Xunit;
@@ -95,15 +96,12 @@ namespace Mongo.Repository.Tests
 
             var myObj = new IdObj
             {
-                Id = "888",
+                Id = ObjectId.GenerateNewId().ToString(),
                 Name = "A"
             };
-            myRepo
-                .Awaiting(r => r.UpdateAsync(myObj))
-                .Should()
-                .Throw<Exception>()
-                .Which.Message.Should()
-                .Contain("no entity to update");
+            myRepo.Update(myObj);
+
+            myRepo.QueryAll().Entities.Should().BeEmpty();
         }
 
         [Fact]
