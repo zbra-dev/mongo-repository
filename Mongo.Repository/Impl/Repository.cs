@@ -38,6 +38,9 @@ namespace Mongo.Repository.Impl
                 collection.Indexes.CreateOne(indexModel);
             });
         }
+        
+        private static bool IsDuplicateKeyError(MongoBulkWriteException ex) =>
+            ex != null && ex.WriteErrors.Any(e => e.Category == ServerErrorCategory.DuplicateKey);
 
         private ObjectId CreateId(BsonDocument document)
         {
@@ -125,11 +128,10 @@ namespace Mongo.Repository.Impl
                 await collection.InsertManyAsync(session, entities);
                 await session.CommitTransactionAsync();
             }
-            catch (MongoBulkWriteException ex)
+            catch (Exception ex)
             {
                 await session.AbortTransactionAsync();
-                if (mapping.UniqueProperty.HasValue
-                    && ex.WriteErrors.Any(e => e.Category == ServerErrorCategory.DuplicateKey))
+                if (mapping.UniqueProperty.HasValue && IsDuplicateKeyError(ex as MongoBulkWriteException))
                 {
                     throw new UniqueConstraintException();
                 }
@@ -140,29 +142,33 @@ namespace Mongo.Repository.Impl
 
         public async Task UpdateAsync(params T[] instances)
         {
+            if (instances.Length == 0)
+            {
+                return;
+            }
+
+            var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
+            foreach (var instance in instances)
+            {
+                var id = mapping.GetKeyValue(instance);
+                if (id == null)
+                    throw new PersistenceException("Cannot update an entity that has key null");
+                var entity = mapping.ToEntity(instance);
+                var replaceOneModel = new ReplaceOneModel<BsonDocument>(new BsonDocument("_id", new ObjectId(id)), entity);
+                replaceOneModels.Add(replaceOneModel);
+            }
+            
+            using var session = await client.StartSessionAsync();
+            session.StartTransaction();
             try
             {
-                var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
-
-                foreach (var instance in instances)
-                {
-                    var id = mapping.GetKeyValue(instance);
-                    if (id == null)
-                        throw new PersistenceException("Cannot update an entity that has key null");
-                    var entity = mapping.ToEntity(instance);
-                    var replaceOneModel = new ReplaceOneModel<BsonDocument>(new BsonDocument("_id", new ObjectId(id)), entity);
-                    replaceOneModels.Add(replaceOneModel);
-                }
-
-                if (replaceOneModels.Count > 0)
-                {
-                    await collection.BulkWriteAsync(replaceOneModels);
-                }
+                await collection.BulkWriteAsync(session, replaceOneModels);
+                await session.CommitTransactionAsync();
             }
-            catch (MongoBulkWriteException ex)
+            catch (Exception ex)
             {
-                if (mapping.UniqueProperty.HasValue
-                    && ex.WriteErrors.Any(e => e.Category == ServerErrorCategory.DuplicateKey))
+                await session.AbortTransactionAsync();
+                if (mapping.UniqueProperty.HasValue && IsDuplicateKeyError(ex as MongoBulkWriteException))
                 {
                     throw new UniqueConstraintException();
                 }
@@ -172,32 +178,34 @@ namespace Mongo.Repository.Impl
 
         public async Task<Maybe<string>[]> UpsertAsync(params T[] instances)
         {
+            if (instances.Length == 0)
+            {
+                return Array.Empty<Maybe<string>>();
+            }
+
+            var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
+            foreach (var instance in instances)
+            {
+                var entity = mapping.ToEntity(instance, CreateId);
+                var replaceOneModel = new ReplaceOneModel<BsonDocument>(new BsonDocument("_id", entity["_id"].AsObjectId), entity)
+                {
+                    IsUpsert = true,
+                };
+                replaceOneModels.Add(replaceOneModel);
+            }
+
+            using var session = await client.StartSessionAsync();
+            session.StartTransaction();
             try
             {
-                var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
-
-                foreach (var instance in instances)
-                {
-                    var entity = mapping.ToEntity(instance, CreateId);
-                    var replaceOneModel = new ReplaceOneModel<BsonDocument>(new BsonDocument("_id", entity["_id"].AsObjectId), entity)
-                    {
-                        IsUpsert = true,
-                    };
-                    replaceOneModels.Add(replaceOneModel);
-                }
-
-                if (replaceOneModels.Count > 0)
-                {
-                    var result = await collection.BulkWriteAsync(replaceOneModels);
-                    return result.Upserts.Select(u => u.Id.ToMaybe().Select(i => i.ToString())).ToArray();
-                }
-
-                return new Maybe<string>[0];
+                var result = await collection.BulkWriteAsync(session, replaceOneModels);
+                await session.CommitTransactionAsync();
+                return result.Upserts.Select(u => u.Id.ToMaybe().Select(i => i.ToString())).ToArray();
             }
-            catch (MongoBulkWriteException ex)
+            catch (Exception ex)
             {
-                if (mapping.UniqueProperty.HasValue
-                    && ex.WriteErrors.Any(e => e.Category == ServerErrorCategory.DuplicateKey))
+                await session.AbortTransactionAsync();
+                if (mapping.UniqueProperty.HasValue && IsDuplicateKeyError(ex as MongoBulkWriteException))
                 {
                     throw new UniqueConstraintException();
                 }
@@ -211,7 +219,19 @@ namespace Mongo.Repository.Impl
                 return;
             var ids = instances.Select(i => new ObjectId(mapping.GetKeyValue(i))).ToArray();
             var filter = Builders<BsonDocument>.Filter.In("_id", ids);
-            await collection.DeleteManyAsync(filter);
+            
+            using var session = await client.StartSessionAsync();
+            session.StartTransaction();
+            try
+            {
+                await collection.DeleteManyAsync(session, filter);
+                await session.CommitTransactionAsync();
+            }
+            catch (Exception e)
+            {
+                await session.AbortTransactionAsync();
+                throw;
+            }
         }
 
         public async Task DeleteAsync(params string[] ids)
@@ -220,7 +240,18 @@ namespace Mongo.Repository.Impl
                 return;
 
             var filter = Builders<BsonDocument>.Filter.In("_id", ids.Select(id => new ObjectId(id)).ToArray());
-            await collection.DeleteManyAsync(filter);
+            using var session = await client.StartSessionAsync();
+            session.StartTransaction();
+            try
+            {
+                await collection.DeleteManyAsync(session, filter);
+                await session.CommitTransactionAsync();
+            }
+            catch (Exception e)
+            {
+                await session.AbortTransactionAsync();
+                throw;
+            }
         }
 
         public Task<ResultPage<T>> QueryAllAsync() => QueryAllAsync(null, null);

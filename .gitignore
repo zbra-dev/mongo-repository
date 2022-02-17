@@ -9,7 +9,6 @@ obj/
 bin/
 Logs/
 dist/
-*.js
 *.js.map
 
 # Build results
