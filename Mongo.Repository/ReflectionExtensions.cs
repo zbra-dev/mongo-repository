@@ -2,7 +2,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Mongo.Repository
+namespace ZBRA.Mongo.Repository
 {
     internal static class ReflectionExtensions
     {

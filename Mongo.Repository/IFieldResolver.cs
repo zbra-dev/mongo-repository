@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq.Expressions;
 
-namespace Mongo.Repository
+namespace ZBRA.Mongo.Repository
 {
     public interface IFieldResolver<T>
     {

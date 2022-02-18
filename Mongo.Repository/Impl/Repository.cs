@@ -9,7 +9,7 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using ZBRA.Maybe;
 
-namespace Mongo.Repository.Impl
+namespace ZBRA.Mongo.Repository.Impl
 {
     public class Repository<T> : IRepository<T>
     {

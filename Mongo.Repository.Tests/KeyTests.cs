@@ -1,11 +1,10 @@
 using FluentAssertions;
-using Mongo.Repository.Impl;
 using MongoDB.Bson;
-using System;
 using System.Threading.Tasks;
 using Xunit;
+using ZBRA.Mongo.Repository.Impl;
 
-namespace Mongo.Repository.Tests
+namespace ZBRA.Mongo.Repository.Tests
 {
     [Collection("MongoCollection")]
     public class KeyTests

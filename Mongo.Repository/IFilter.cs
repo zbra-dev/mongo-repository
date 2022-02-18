@@ -1,7 +1,7 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Driver;
 
-namespace Mongo.Repository
+namespace ZBRA.Mongo.Repository
 {
     public interface IFilter<T>
     {

@@ -1,8 +1,8 @@
-using Mongo.Repository.Impl;
 using System;
 using System.Collections.Generic;
+using ZBRA.Mongo.Repository.Impl;
 
-namespace Mongo.Repository
+namespace ZBRA.Mongo.Repository
 {
     public class Mappings
     {

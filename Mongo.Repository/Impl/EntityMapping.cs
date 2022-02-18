@@ -6,7 +6,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using ZBRA.Maybe;
 
-namespace Mongo.Repository.Impl
+namespace ZBRA.Mongo.Repository.Impl
 {
     internal interface IEntityMapping
     {

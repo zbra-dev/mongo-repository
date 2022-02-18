@@ -1,11 +1,11 @@
-﻿using Mongo.Repository.Impl;
-using FluentAssertions;
+﻿using FluentAssertions;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using Xunit;
+using ZBRA.Mongo.Repository.Impl;
 
-namespace Mongo.Repository.Tests
+namespace ZBRA.Mongo.Repository.Tests
 {
     [Collection("MongoCollection")]
     public class MapTests

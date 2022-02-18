@@ -1,6 +1,6 @@
 ﻿using MongoDB.Bson;
 
-namespace Mongo.Repository
+namespace ZBRA.Mongo.Repository
 {
     public interface IEntityMigration
     {

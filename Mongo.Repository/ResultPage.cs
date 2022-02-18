@@ -1,4 +1,4 @@
-﻿namespace Mongo.Repository
+﻿namespace ZBRA.Mongo.Repository
 {
     public class ResultPage<T>
     {

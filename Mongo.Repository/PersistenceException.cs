@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Mongo.Repository
+namespace ZBRA.Mongo.Repository
 {
     public class PersistenceException : Exception
     {

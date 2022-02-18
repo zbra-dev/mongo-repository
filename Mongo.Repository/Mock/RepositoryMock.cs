@@ -1,4 +1,3 @@
-using Mongo.Repository.Impl;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
@@ -6,8 +5,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using ZBRA.Maybe;
+using ZBRA.Mongo.Repository.Impl;
 
-namespace Mongo.Repository.Mock
+namespace ZBRA.Mongo.Repository.Mock
 {
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
 

@@ -7,7 +7,7 @@ using System.Reflection;
 using System.Text.Json;
 using ZBRA.Maybe;
 
-namespace Mongo.Repository.Impl
+namespace ZBRA.Mongo.Repository.Impl
 {
     internal class ValueConverterRepository
     {

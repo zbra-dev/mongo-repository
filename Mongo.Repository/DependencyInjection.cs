@@ -1,5 +1,5 @@
-﻿using Mongo.Repository;
-using Mongo.Repository.Impl;
+﻿using ZBRA.Mongo.Repository;
+using ZBRA.Mongo.Repository.Impl;
 using MongoDB.Driver;
 
 namespace Microsoft.Extensions.DependencyInjection

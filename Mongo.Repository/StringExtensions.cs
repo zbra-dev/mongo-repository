@@ -1,5 +1,4 @@
-﻿
-namespace Mongo.Repository
+﻿namespace ZBRA.Mongo.Repository
 {
     public static class StringExtensions
     {

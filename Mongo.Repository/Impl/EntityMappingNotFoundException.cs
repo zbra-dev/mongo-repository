@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Mongo.Repository.Impl
+namespace ZBRA.Mongo.Repository.Impl
 {
     [Serializable]
     public class EntityMappingNotFoundException : Exception

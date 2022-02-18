@@ -6,7 +6,7 @@ using System.Linq;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Mongo.Repository.Tests
+namespace ZBRA.Mongo.Repository.Tests
 {
     [CollectionDefinition("MongoCollection")]
     public class MongoCollection : ICollectionFixture<MongoFixture>

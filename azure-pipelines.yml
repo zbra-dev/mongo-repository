@@ -1,0 +1,57 @@
+name: $(SourceBranchName)_$(date:yyyyMMdd)$(rev:.r)
+
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+parameters:
+  - name: publishPackage
+    displayName: Publish Package to Nuget Library
+    type: boolean
+    default: false
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: Any CPU
+  buildConfiguration: Release
+
+steps:
+- task: NuGetToolInstaller@1
+  displayName: Nuget Install
+
+- task: NuGetCommand@2
+  displayName: Nuget Restore
+  inputs:
+    command: restore
+    restoreSolution: '**/*.sln'
+
+- task: DotNetCoreCLI@2
+  displayName: Build
+  inputs:
+    command: build
+    projects: '**/*.csproj'
+    workingDirectory: $(Build.SourcesDirectory)
+  
+- task: DotNetCoreCLI@2
+  displayName: Test
+  inputs:
+    command: test
+    projects: Mongo.Repository.Test/Mongo.Repository.Test.csproj
+
+- task: DotNetCoreCLI@2
+  displayName: Nuget Pack
+  inputs:
+    command: pack
+    packagesToPack: Mongo.Repository/Mongo.Repository.csproj
+    versioningScheme: off
+
+- task: NuGetCommand@2
+  displayName: NuGet push
+  condition: eq(${{ parameters.publishPackage }}, true)
+  inputs:
+    command: push
+    packagesToPush: $(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg
+    nuGetFeedType: external
+    publishFeedCredentials: Nuget

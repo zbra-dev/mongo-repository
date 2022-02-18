@@ -4,7 +4,7 @@ using MongoDB.Driver;
 using System.Linq;
 using Xunit;
 
-namespace Mongo.Repository.Tests
+namespace ZBRA.Mongo.Repository.Tests
 {
     [Collection("MongoCollection")]
     public class IoCTests

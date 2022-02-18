@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using ZBRA.Maybe;
 
-namespace Mongo.Repository
+namespace ZBRA.Mongo.Repository
 {
     public interface IRepository<T>
     {

@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Mongo.Repository.Impl;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
@@ -7,8 +6,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 using ZBRA.Maybe;
+using ZBRA.Mongo.Repository.Impl;
 
-namespace Mongo.Repository.Tests
+namespace ZBRA.Mongo.Repository.Tests
 {
     [Collection("MongoCollection")]
     public class RepositoryTests

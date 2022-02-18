@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 
-namespace Mongo.Repository
+namespace ZBRA.Mongo.Repository
 {
     public class MongoConfig
     {

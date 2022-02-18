@@ -1,10 +1,10 @@
-using Mongo.Repository.Mock;
 using FluentAssertions;
 using System;
 using System.Linq;
 using Xunit;
+using ZBRA.Mongo.Repository.Mock;
 
-namespace Mongo.Repository.Tests
+namespace ZBRA.Mongo.Repository.Tests
 {
     public class MockTests
     {

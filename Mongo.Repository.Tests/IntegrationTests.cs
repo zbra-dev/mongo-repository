@@ -1,10 +1,10 @@
-using Mongo.Repository.Impl;
 using FluentAssertions;
 using System;
 using System.Linq;
 using Xunit;
+using ZBRA.Mongo.Repository.Impl;
 
-namespace Mongo.Repository.Tests
+namespace ZBRA.Mongo.Repository.Tests
 {
     [Collection("MongoCollection")]
     public class IntegrationTests
