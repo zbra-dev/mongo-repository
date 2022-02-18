@@ -107,20 +107,20 @@ namespace Mongo.Repository.Tests
         }
 
         [Theory]
-        [InlineData(1, 1, true)]
-        [InlineData(1, 10, false)]
-        [InlineData(1, 9, false)]
-        [InlineData(1, 8, true)]
-        [InlineData(2, 7, true)]
-        [InlineData(2, 8, false)]
-        [InlineData(2, 9, false)]
-        [InlineData(null, 100, false)]
-        [InlineData(10, 1, false)]
-        [InlineData(10, 0, false)]
-        [InlineData(0, null, false)]
-        [InlineData(0, 10, false)]
-        [InlineData(10, null, false)]
-        public async void FilterTests(int? skip, int? take, bool hasMoreResults)
+        [InlineData(1, 1, true, true)]
+        [InlineData(1, 10, false, false)]
+        [InlineData(1, 9, false, false)]
+        [InlineData(1, 8, true, false)]
+        [InlineData(2, 7, true, false)]
+        [InlineData(2, 8, false, false)]
+        [InlineData(2, 9, false, false)]
+        [InlineData(null, 100, false, false)]
+        [InlineData(10, 1, false, false)]
+        [InlineData(10, 0, false, false)]
+        [InlineData(0, null, false, false)]
+        [InlineData(0, 10, false, false)]
+        [InlineData(10, null, false, false)]
+        public async void FilterTests(int? skip, int? take, bool hasMoreResults, bool nextHasMoreResults)
         {
             var mappings = new Mappings();
             mappings.Entity<AObj>()
@@ -135,20 +135,30 @@ namespace Mongo.Repository.Tests
                 await repository.InsertAsync(new AObj() { Name = "a", LastName = $"a{i}",  Value = i });
             (await repository.QueryAllAsync()).Entities.Should().HaveCount(10);
 
-            var result = await repository.QueryAsync(new AObjFilter
+            var filter = new AObjFilter
             {
                 OrderBy = "LastName",
                 PropertyName = "Name",
                 Value = "a",
                 Skip = skip,
                 Take = take
-            });
+            };
+            var result = await repository.QueryAsync(filter);
             result
                 .Entities
                 .Select(e => e.Value)
                 .Should()
                 .BeEquivalentTo(values.Skip(skip ?? 0).Take(take ?? 100), opt => opt.WithStrictOrdering());
             result.HasMoreResults.Should().Be(hasMoreResults);
+
+            filter.Skip += filter.Take;
+            result = await repository.QueryAsync(filter);
+            result
+                .Entities
+                .Select(e => e.Value)
+                .Should()
+                .BeEquivalentTo(values.Skip(filter.Skip ?? 0).Take(filter.Take ?? 100), opt => opt.WithStrictOrdering());
+            result.HasMoreResults.Should().Be(nextHasMoreResults);
         }
 
         [Fact]
