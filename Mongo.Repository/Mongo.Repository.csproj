@@ -5,7 +5,7 @@
     <Version>1.4.0</Version>
     <AssemblyName>ZBRA.Mongo.Repository</AssemblyName>
     <RootNamespace>ZBRA.Mongo.Repository</RootNamespace>
-    <PackageVersion>0.1.0</PackageVersion>
+    <PackageVersion>0.1.1</PackageVersion>
     <Authors>ZBRA Solutions</Authors>
     <PackageProjectUrl>https://github.com/zbra-solutions/mongo-repository</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zbra-solutions/mongo-repository</RepositoryUrl>
