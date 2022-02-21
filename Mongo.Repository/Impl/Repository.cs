@@ -169,11 +169,11 @@ namespace ZBRA.Mongo.Repository.Impl
             }
         }
 
-        public async Task<Maybe<string>[]> UpsertAsync(params T[] instances)
+        public async Task<string[]> UpsertAsync(params T[] instances)
         {
             if (instances.Length == 0)
             {
-                return Array.Empty<Maybe<string>>();
+                return Array.Empty<string>();
             }
 
             var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
@@ -193,7 +193,7 @@ namespace ZBRA.Mongo.Repository.Impl
             {
                 var result = await collection.BulkWriteAsync(session, replaceOneModels);
                 await session.CommitTransactionAsync();
-                return result.Upserts.Select(u => u.Id.ToMaybe().Select(i => i.ToString())).ToArray();
+                return result.Upserts.Select(u => u.Id.AsObjectId.ToString()).ToArray();
             }
             catch (Exception ex)
             {
@@ -249,7 +249,7 @@ namespace ZBRA.Mongo.Repository.Impl
 
         public Task<ResultPage<T>> QueryAllAsync() => QueryAllAsync(null, null);
         public async Task<string> InsertAsync(T instance) => (await InsertAsync(new[] { instance })).First();
-        public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).First();
+        public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).MaybeFirst();
 
         public ResultPage<T> QueryAll() => QueryAllAsync().Result;
         public ResultPage<T> Query<P>(Expression<Func<T, P>> expression, object value) => QueryAsync(expression, value).Result;
@@ -260,7 +260,7 @@ namespace ZBRA.Mongo.Repository.Impl
         public string[] Insert(params T[] instances) => InsertAsync(instances).Result;
         public void Update(params T[] instances) => UpdateAsync(instances).Wait();
         public Maybe<string> Upsert(T instance) => UpsertAsync(instance).Result;
-        public Maybe<string>[] Upsert(params T[] instances) => UpsertAsync(instances).Result;
+        public string[] Upsert(params T[] instances) => UpsertAsync(instances).Result;
         public void Delete(params T[] instances) => DeleteAsync(instances).Wait();
         public void Delete(params string[] ids) => DeleteAsync(ids).Wait();
 

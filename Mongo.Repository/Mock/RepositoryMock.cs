@@ -91,20 +91,19 @@ namespace ZBRA.Mongo.Repository.Mock
             }
         }
 
-        public async Task<Maybe<string>[]> UpsertAsync(params T[] instances)
+        public async Task<string[]> UpsertAsync(params T[] instances)
         {
-            var result = new List<Maybe<string>>();
+            var result = new List<string>();
             foreach (var instance in instances)
             {
                 var key = mapping.GetKeyValue(instance);
                 if (string.IsNullOrEmpty(key))
                 {
-                    result.Add((await InsertAsync(instance)).ToMaybe());
+                    result.Add((await InsertAsync(instance)));
                 }
                 else
                 {
                     await UpdateAsync(instance);
-                    result.Add(Maybe<string>.Nothing);
                 }
             }
             return result.ToArray();
@@ -126,7 +125,7 @@ namespace ZBRA.Mongo.Repository.Mock
         public async Task<ResultPage<T>> QueryAllAsync() => new ResultPage<T>(map.Values.Select(i => mapping.FromEntity(i)).ToArray());
         public Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null) => throw new NotImplementedException();
         public async Task<string> InsertAsync(T instance) => (await InsertAsync(new[] { instance })).First();
-        public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).First();
+        public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).MaybeFirst();
 
         public Maybe<T> FindById(string id) => FindByIdAsync(id).Result;
         public ResultPage<T> Query(IFilter<T> filter) => QueryAsync(filter).Result;
@@ -137,7 +136,7 @@ namespace ZBRA.Mongo.Repository.Mock
         public string[] Insert(params T[] instances) => InsertAsync(instances).Result;
         public void Update(params T[] instances) => UpdateAsync(instances).Wait();
         public Maybe<string> Upsert(T instance) => UpsertAsync(instance).Result;
-        public Maybe<string>[] Upsert(params T[] instances) => UpsertAsync(instances).Result;
+        public string[] Upsert(params T[] instances) => UpsertAsync(instances).Result;
         public void Delete(params T[] instances) => DeleteAsync(instances).Wait();
         public void Delete(params string[] ids) => DeleteAsync(ids).Wait();
     }

@@ -16,7 +16,7 @@ namespace ZBRA.Mongo.Repository
         string[] Insert(params T[] instances);
         void Update(params T[] instances);
         Maybe<string> Upsert(T instance);
-        Maybe<string>[] Upsert(params T[] instances);
+        string[] Upsert(params T[] instances);
         void Delete(params T[] instances);
         void Delete(params string[] ids);
 
@@ -29,7 +29,7 @@ namespace ZBRA.Mongo.Repository
         Task<string[]> InsertAsync(params T[] instances);
         Task UpdateAsync(params T[] instances);
         Task<Maybe<string>> UpsertAsync(T instance);
-        Task<Maybe<string>[]> UpsertAsync(params T[] instances);
+        Task<string[]> UpsertAsync(params T[] instances);
         Task DeleteAsync(params T[] instances);
         Task DeleteAsync(params string[] ids);
     }

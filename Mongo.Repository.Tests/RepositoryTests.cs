@@ -232,6 +232,44 @@ namespace ZBRA.Mongo.Repository.Tests
             (await repo.QueryAllAsync()).Entities.Should().HaveCount(0);
         }
 
+        [Fact]
+        public async void Upsert_WithExistingEntity_ShouldUpdateEntity()
+        {
+            var mappings = new Mappings();
+            mappings.Entity<RepoObj>().Infer(true).Build();
+            var repository = new Repository<RepoObj>(fixture.Client, fixture.GetDb(), mappings);
+            var id = await repository.InsertAsync(new RepoObj { Name = "a", Value = 10 });
+
+            var maybeEntity = await repository.FindByIdAsync(id);
+            maybeEntity.HasValue.Should().BeTrue();
+
+            var entity = maybeEntity.Value;
+            entity.Name = "b";
+
+            var upsertResult = await repository.UpsertAsync(entity);
+            upsertResult.HasValue.Should().BeFalse();
+
+            var maybeUpsertedEntity = await repository.FindByIdAsync(id);
+            maybeUpsertedEntity.HasValue.Should().BeTrue();
+            maybeUpsertedEntity.Value.Should().BeEquivalentTo(entity);
+        }
+
+        [Fact]
+        public async void Upsert_WithoutExistingEntity_ShouldInsertEntity()
+        {
+            var mappings = new Mappings();
+            mappings.Entity<RepoObj>().Infer(true).Build();
+            var repository = new Repository<RepoObj>(fixture.Client, fixture.GetDb(), mappings);
+
+            var entity = new RepoObj { Name = "a", Value = 10 };
+            var upsertResult = await repository.UpsertAsync(entity);
+            upsertResult.HasValue.Should().BeTrue();
+
+            var maybeUpsertedEntity = await repository.FindByIdAsync(upsertResult.Value);
+            maybeUpsertedEntity.HasValue.Should().BeTrue();
+            maybeUpsertedEntity.Value.Should().BeEquivalentTo(entity, opt => opt.Excluding(e => e.Id));
+        }
+
         private class DecimalObj
         {
             public string Id { get; set; }

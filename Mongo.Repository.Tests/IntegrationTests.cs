@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MongoDB.Bson;
 using System;
 using System.Linq;
 using Xunit;
@@ -138,17 +139,6 @@ namespace ZBRA.Mongo.Repository.Tests
             ids.Should().HaveCount(1);
             result = await repository.QueryAllAsync();
             result.Entities.Should().HaveCount(3);
-        }
-
-        [Fact]
-        public async void UpsertIsNotSupported()
-        {
-            await repository.InsertAsync(new IntObj { Name = "myobj1", Unique = "a" });
-            var result = await repository.QueryAllAsync();
-            var entity = result.Entities.First();
-            entity.Name = "m";
-            entity.Unique = "b";
-            repository.Awaiting(r => r.UpsertAsync(entity)).Should().Throw<InvalidOperationException>();
         }
 
         [Fact]

@@ -11,7 +11,7 @@ namespace Microsoft.Extensions.DependencyInjection
             MongoConfig config)
         {
             services.AddSingleton<IMongoClient>(new MongoClient(config.ConnString));
-            services.AddScoped(provider => provider.GetService<IMongoClient>().GetDatabase(config.DatabaseName));
+            services.AddSingleton(provider => provider.GetService<IMongoClient>().GetDatabase(config.DatabaseName));
             services.AddSingleton(typeof(IRepository<>), typeof(Repository<>));
             services.AddSingleton(config);
 
