@@ -12,8 +12,8 @@ namespace ZBRA.Mongo.Repository
         ResultPage<T> QueryAll();
         ResultPage<T> QueryAll(int? limit = null, int? skip = null);
         Maybe<T> FindById(string id);
-        string Insert(T instance);
-        string[] Insert(params T[] instances);
+        string Insert(T instance, ISessionHandle session = null);
+        string[] Insert(T[] instances, ISessionHandle session = null);
         void Update(params T[] instances);
         Maybe<string> Upsert(T instance);
         string[] Upsert(params T[] instances);
@@ -25,12 +25,14 @@ namespace ZBRA.Mongo.Repository
         Task<ResultPage<T>> QueryAllAsync();
         Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null);
         Task<Maybe<T>> FindByIdAsync(string id);
-        Task<string> InsertAsync(T instance);
-        Task<string[]> InsertAsync(params T[] instances);
+        Task<string> InsertAsync(T instance, ISessionHandle session = null);
+        Task<string[]> InsertAsync(T[] instances, ISessionHandle session = null);
         Task UpdateAsync(params T[] instances);
         Task<Maybe<string>> UpsertAsync(T instance);
         Task<string[]> UpsertAsync(params T[] instances);
         Task DeleteAsync(params T[] instances);
         Task DeleteAsync(params string[] ids);
+        Task<ISessionHandle> StartSessionAsync();
+        ISessionHandle StartSession();
     }
 }

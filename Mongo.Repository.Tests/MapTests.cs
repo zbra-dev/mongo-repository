@@ -86,12 +86,12 @@ namespace ZBRA.Mongo.Repository.Tests
             yield return new object[] { new Whatever() };
         }
 
-        public class Whatever
+        private class Whatever
         {
 
         }
 
-        public class MapObj
+        private class MapObj
         {
             public string Id { get; set; }
             public Dictionary<string, object> Data { get; set; }

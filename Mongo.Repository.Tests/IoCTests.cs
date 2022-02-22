@@ -45,7 +45,7 @@ namespace ZBRA.Mongo.Repository.Tests
             records.Entities.First().Value.Should().Be("1");
         }
 
-        public class MyObjY
+        private class MyObjY
         {
             public string Id { get; set; }
             public string Value { get; set; }

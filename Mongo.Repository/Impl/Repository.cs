@@ -105,7 +105,7 @@ namespace ZBRA.Mongo.Repository.Impl
             return result.Select(i => mapping.FromEntity(i)).MaybeSingle();
         }
 
-        public async Task<string[]> InsertAsync(params T[] instances)
+        public async Task<string[]> InsertAsync(T[] instances, ISessionHandle session = null)
         {
             if (instances.Length == 0)
                 return new string[] { };
@@ -114,22 +114,25 @@ namespace ZBRA.Mongo.Repository.Impl
                 throw new PersistenceException("Cannot insert instance that already has key set");
 
             var entities = instances.Select(i => mapping.ToEntity(i, CreateId)).ToArray();
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
             try
             {
-                await collection.InsertManyAsync(session, entities);
+                if (session == null)
+                {
+                    await collection.InsertManyAsync(entities);
+                }
+                else
+                {
+                    await collection.InsertManyAsync(((SessionHandle)session).InnerSession, entities);
+                }
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 if (mapping.UniqueProperty != null && IsDuplicateKeyError(ex as MongoBulkWriteException))
                 {
                     throw new UniqueConstraintException();
                 }
                 throw;
             }
-            await session.CommitTransactionAsync();
             return entities.Select(i => i["_id"].ToString()).ToArray();
         }
 
@@ -247,8 +250,14 @@ namespace ZBRA.Mongo.Repository.Impl
             }
         }
 
+        public async Task<ISessionHandle> StartSessionAsync()
+        {
+            var session = await client.StartSessionAsync();
+            return new SessionHandle(session);
+        }
+
         public Task<ResultPage<T>> QueryAllAsync() => QueryAllAsync(null, null);
-        public async Task<string> InsertAsync(T instance) => (await InsertAsync(new[] { instance })).First();
+        public async Task<string> InsertAsync(T instance, ISessionHandle session = null) => (await InsertAsync(new[] { instance }, session)).First();
         public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).MaybeFirst();
 
         public ResultPage<T> QueryAll() => QueryAllAsync().Result;
@@ -256,13 +265,14 @@ namespace ZBRA.Mongo.Repository.Impl
         public ResultPage<T> Query(IFilter<T> filter) => QueryAsync(filter).Result;
         public ResultPage<T> QueryAll(int? limit = null, int? skip = null) => QueryAllAsync(limit, skip).Result;
         public Maybe<T> FindById(string id) => FindByIdAsync(id).Result;
-        public string Insert(T instance) => InsertAsync(instance).Result;
-        public string[] Insert(params T[] instances) => InsertAsync(instances).Result;
+        public string Insert(T instance, ISessionHandle session = null) => InsertAsync(instance, session).Result;
+        public string[] Insert(T[] instances, ISessionHandle session = null) => InsertAsync(instances, session).Result;
         public void Update(params T[] instances) => UpdateAsync(instances).Wait();
         public Maybe<string> Upsert(T instance) => UpsertAsync(instance).Result;
         public string[] Upsert(params T[] instances) => UpsertAsync(instances).Result;
         public void Delete(params T[] instances) => DeleteAsync(instances).Wait();
         public void Delete(params string[] ids) => DeleteAsync(ids).Wait();
+        public ISessionHandle StartSession() => StartSessionAsync().Result;
 
         internal class FilterResolver : IFieldResolver<T>
         {

@@ -68,10 +68,13 @@ namespace ZBRA.Mongo.Repository.Tests
                 new IntObj { Unique = "a" },
                 new IntObj { Unique = "a" },
             };
+            var session = await repository.StartSessionAsync();
+            session.StartTransaction();
             repository
-                .Awaiting(r => r.InsertAsync(objs))
+                .Awaiting(r => r.InsertAsync(objs, session))
                 .Should()
                 .ThrowExactly<UniqueConstraintException>();
+            await session.AbortTransactionAsync();
             var result = await repository.QueryAllAsync();
             result.Entities.Should().HaveCount(1);
         }
@@ -174,7 +177,7 @@ namespace ZBRA.Mongo.Repository.Tests
             result.Entities.Select(e => e.Unique).Distinct().Should().BeEquivalentTo(new[] { "a", "b", "c" });
         }
 
-        public class IntObj
+        private class IntObj
         {
             public string Id { get; set; }
             public string Name { get; set; }

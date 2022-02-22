@@ -61,7 +61,7 @@ namespace ZBRA.Mongo.Repository.Tests
             await repository.DeleteAsync(objs[1]);
         }
 
-        public class IntObj
+        private class IntObj
         {
             public string Id { get; set; }
             public string Name { get; set; }
