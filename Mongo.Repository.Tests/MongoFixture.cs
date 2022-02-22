@@ -50,13 +50,7 @@ namespace ZBRA.Mongo.Repository.Tests
             var db = GetDb();
             var collections = db.ListCollectionNames().ToList();
 
-            var tasks = new List<Task>();
-            foreach (var collection in collections)
-            {
-                var task = db.DropCollectionAsync(collection);
-                tasks.Add(task);
-            }
-
+            var tasks = collections.Select(c => db.DropCollectionAsync(c));
             Task.WaitAll(tasks.ToArray());
         }
 
