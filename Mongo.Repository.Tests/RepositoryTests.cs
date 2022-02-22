@@ -271,9 +271,8 @@ namespace ZBRA.Mongo.Repository.Tests
         }
 
         [Fact]
-        public async void Paralelism_Tests()
+        public async void Parallelism_Tests()
         {
-
             var mappings = new Mappings();
             mappings.Entity<RepoObj>().Infer(true).Build();
             var repository = new Repository<RepoObj>(fixture.Client, fixture.GetDb(), mappings);
