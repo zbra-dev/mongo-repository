@@ -270,20 +270,20 @@ namespace ZBRA.Mongo.Repository.Tests
             maybeUpsertedEntity.Value.Should().BeEquivalentTo(entity, opt => opt.Excluding(e => e.Id));
         }
 
-        //[Fact]
-        //public async void Parallelism_Tests()
-        //{
-        //    var mappings = new Mappings();
-        //    mappings.Entity<RepoObj>().Infer(true).Build();
-        //    var repository = new Repository<RepoObj>(fixture.Client, fixture.GetDb(), mappings);
-        //    var entities = Enumerable.Range(0, 10).Select(i => new RepoObj { Value = i }).ToArray();
-        //
-        //    var tasks = entities.Select(e => repository.InsertAsync(e));
-        //    await Task.WhenAll(tasks);
-        //
-        //    var results = tasks.Select(t => t.Result).ToArray();
-        //    results.Should().HaveCount(10);
-        //}
+        [Fact]
+        public async void Parallelism_Tests()
+        {
+            var mappings = new Mappings();
+            mappings.Entity<RepoObj>().Infer(true).Build();
+            var repository = new Repository<RepoObj>(fixture.Client, fixture.GetDb(), mappings);
+            var entities = Enumerable.Range(0, 10).Select(i => new RepoObj { Value = i }).ToArray();
+        
+            var tasks = entities.Select(e => repository.InsertAsync(e));
+            await Task.WhenAll(tasks);
+        
+            var results = tasks.Select(t => t.Result).ToArray();
+            results.Should().HaveCount(10);
+        }
 
         private class DecimalObj
         {
