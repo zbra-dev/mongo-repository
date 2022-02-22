@@ -153,9 +153,8 @@ namespace ZBRA.Mongo.Repository.Impl
             
             try
             {
-                if (session == null)
-                    await collection.BulkWriteAsync(replaceOneModels);    
-                else
+                var result = session == null ?
+                    await collection.BulkWriteAsync(replaceOneModels) :    
                     await collection.BulkWriteAsync(((SessionHandle)session).InnerSession, replaceOneModels);
             }
             catch (Exception ex)
@@ -166,39 +165,33 @@ namespace ZBRA.Mongo.Repository.Impl
             }
         }
 
-        public async Task<string[]> UpsertAsync(params T[] instances)
+        public async Task<string[]> UpsertAsync(T[] instances, ISessionHandle session = null)
         {
             if (instances.Length == 0)
             {
                 return Array.Empty<string>();
             }
 
-            var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
-            foreach (var instance in instances)
-            {
-                var entity = mapping.ToEntity(instance, CreateId);
-                var replaceOneModel = new ReplaceOneModel<BsonDocument>(new BsonDocument("_id", entity["_id"].AsObjectId), entity)
-                {
-                    IsUpsert = true,
-                };
-                replaceOneModels.Add(replaceOneModel);
-            }
+            var replaceOneModels = instances
+                .Select(instance => mapping.ToEntity(instance, CreateId))
+                .Select(entity => new ReplaceOneModel<BsonDocument>(
+                    new BsonDocument("_id", entity["_id"].AsObjectId), entity)
+                    {
+                        IsUpsert = true,
+                    })
+                .ToList();
 
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
             try
             {
-                var result = await collection.BulkWriteAsync(session, replaceOneModels);
-                await session.CommitTransactionAsync();
+                var result = session == null ?
+                    await collection.BulkWriteAsync(replaceOneModels):
+                    await collection.BulkWriteAsync(((SessionHandle)session).InnerSession, replaceOneModels);
                 return result.Upserts.Select(u => u.Id.AsObjectId.ToString()).ToArray();
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 if (mapping.UniqueProperty != null && IsDuplicateKeyError(ex as MongoBulkWriteException))
-                {
                     throw new UniqueConstraintException();
-                }
                 throw;
             }
         }
@@ -252,7 +245,7 @@ namespace ZBRA.Mongo.Repository.Impl
 
         public Task<ResultPage<T>> QueryAllAsync() => QueryAllAsync(null, null, null);
         public async Task<string> InsertAsync(T instance, ISessionHandle session = null) => (await InsertAsync(new[] { instance }, session)).First();
-        public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).MaybeFirst();
+        public async Task<Maybe<string>> UpsertAsync(T instance, ISessionHandle session = null) => (await UpsertAsync(new[] { instance }, session)).MaybeFirst();
         public async Task UpdateAsync(T instance, ISessionHandle session = null) => await UpdateAsync(new[] { instance }, session);
 
         public ResultPage<T> QueryAll() => QueryAllAsync().Result;
@@ -264,8 +257,8 @@ namespace ZBRA.Mongo.Repository.Impl
         public string[] Insert(T[] instances, ISessionHandle session = null) => InsertAsync(instances, session).Result;
         public void Update(T[] instances, ISessionHandle session = null) => UpdateAsync(instances, session).Wait();
         public void Update(T instance, ISessionHandle session = null) => UpdateAsync(instance, session).Wait();
-        public Maybe<string> Upsert(T instance) => UpsertAsync(instance).Result;
-        public string[] Upsert(params T[] instances) => UpsertAsync(instances).Result;
+        public Maybe<string> Upsert(T instance, ISessionHandle session = null) => UpsertAsync(instance, session).Result;
+        public string[] Upsert(T[] instances, ISessionHandle session = null) => UpsertAsync(instances, session).Result;
         public void Delete(params T[] instances) => DeleteAsync(instances).Wait();
         public void Delete(params string[] ids) => DeleteAsync(ids).Wait();
         public ISessionHandle StartSession() => StartSessionAsync().Result;

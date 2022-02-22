@@ -101,8 +101,10 @@ namespace ZBRA.Mongo.Repository.Mock
             }
         }
 
-        public async Task<string[]> UpsertAsync(params T[] instances)
+        public async Task<string[]> UpsertAsync(T[] instances, ISessionHandle session = null)
         {
+            if (session != null)
+                throw new NotImplementedException();
             var result = new List<string>();
             foreach (var instance in instances)
             {
@@ -139,7 +141,7 @@ namespace ZBRA.Mongo.Repository.Mock
         public async Task<ResultPage<T>> QueryAllAsync() => new ResultPage<T>(map.Values.Select(i => mapping.FromEntity(i)).ToArray());
         public Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null, ISessionHandle session = null) => throw new NotImplementedException();
         public async Task<string> InsertAsync(T instance, ISessionHandle session = null) => (await InsertAsync(new[] { instance }, session)).First();
-        public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).MaybeFirst();
+        public async Task<Maybe<string>> UpsertAsync(T instance, ISessionHandle session = null) => (await UpsertAsync(new[] { instance }, session)).MaybeFirst();
         public async Task UpdateAsync(T instance, ISessionHandle session = null) => await UpdateAsync(new []{ instance }, session);
 
         public Maybe<T> FindById(string id, ISessionHandle session = null) => FindByIdAsync(id, session).Result;
@@ -151,8 +153,8 @@ namespace ZBRA.Mongo.Repository.Mock
         public string[] Insert(T[] instances, ISessionHandle session = null) => InsertAsync(instances, session).Result;
         public void Update(T[] instances, ISessionHandle session = null) => UpdateAsync(instances, session).Wait();
         public void Update(T instance, ISessionHandle session = null) => UpdateAsync(instance, session).Wait();
-        public Maybe<string> Upsert(T instance) => UpsertAsync(instance).Result;
-        public string[] Upsert(params T[] instances) => UpsertAsync(instances).Result;
+        public Maybe<string> Upsert(T instance, ISessionHandle session = null) => UpsertAsync(instance, session).Result;
+        public string[] Upsert(T[] instances, ISessionHandle session = null) => UpsertAsync(instances, session).Result;
         public void Delete(params T[] instances) => DeleteAsync(instances).Wait();
         public void Delete(params string[] ids) => DeleteAsync(ids).Wait();
     }

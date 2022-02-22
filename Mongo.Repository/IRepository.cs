@@ -16,8 +16,8 @@ namespace ZBRA.Mongo.Repository
         string[] Insert(T[] instances, ISessionHandle session = null);
         void Update(T[] instances, ISessionHandle session = null);
         void Update(T instance, ISessionHandle session = null);
-        Maybe<string> Upsert(T instance);
-        string[] Upsert(params T[] instances);
+        Maybe<string> Upsert(T instance, ISessionHandle session = null);
+        string[] Upsert(T[] instances, ISessionHandle session = null);
         void Delete(params T[] instances);
         void Delete(params string[] ids);
 
@@ -30,8 +30,8 @@ namespace ZBRA.Mongo.Repository
         Task<string[]> InsertAsync(T[] instances, ISessionHandle session = null);
         Task UpdateAsync(T[] instances, ISessionHandle session = null);
         Task UpdateAsync(T instance, ISessionHandle session = null);
-        Task<Maybe<string>> UpsertAsync(T instance);
-        Task<string[]> UpsertAsync(params T[] instances);
+        Task<Maybe<string>> UpsertAsync(T instance, ISessionHandle session = null);
+        Task<string[]> UpsertAsync(T[] instances, ISessionHandle session = null);
         Task DeleteAsync(params T[] instances);
         Task DeleteAsync(params string[] ids);
         Task<ISessionHandle> StartSessionAsync();
