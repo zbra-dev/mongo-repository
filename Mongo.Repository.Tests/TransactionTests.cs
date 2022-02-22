@@ -25,7 +25,7 @@ namespace ZBRA.Mongo.Repository.Tests
         }
 
         [Fact]
-        public async void CommitShouldSucceed()
+        public async void Insert_ShouldSucceed()
         {
             var session = await repository.StartSessionAsync();
             session.StartTransaction();
@@ -42,7 +42,7 @@ namespace ZBRA.Mongo.Repository.Tests
         }
         
         [Fact]
-        public async void RollbackShouldSucceed()
+        public async void InsertRollback_ShouldBeVisible()
         {
             var session = await repository.StartSessionAsync();
             session.StartTransaction();
@@ -63,12 +63,10 @@ namespace ZBRA.Mongo.Repository.Tests
             result.Entities.Should().BeEquivalentTo(objs, opt => opt.Excluding(o => o.Id));
 
             result = await repository.QueryAsync(o => o.Name, "a", session);
-            result.Entities.Should().HaveCount(1);
-            result.Entities.First().Should().BeEquivalentTo(objs[0], opt => opt.Excluding(o => o.Id));
+            result.Entities.Single().Should().BeEquivalentTo(objs[0], opt => opt.Excluding(o => o.Id));
 
             result = await repository.QueryAsync(new FilterByName { Name = "B" }, session);
-            result.Entities.Should().HaveCount(1);
-            result.Entities.First().Should().BeEquivalentTo(objs[1], opt => opt.Excluding(o => o.Id));
+            result.Entities.Single().Should().BeEquivalentTo(objs[1], opt => opt.Excluding(o => o.Id));
 
             var found = await repository.FindByIdAsync(ids[0], session);
             found.Value.Should().BeEquivalentTo(objs[0], opt => opt.Excluding(o => o.Id));
@@ -78,6 +76,52 @@ namespace ZBRA.Mongo.Repository.Tests
             result = await repository.QueryAllAsync();
             result.Entities.Should().BeEmpty();
         }
+
+        [Fact]
+        public async void Update_ShouldSucceed()
+        {
+            var obj = new IntObj {Unique = "a", Value = 1};
+            obj.Id = await repository.InsertAsync(obj);
+
+            var session = await repository.StartSessionAsync();
+            session.StartTransaction();
+            obj.Unique = "b";
+            obj.Name = "1";
+            obj.Value = 10;
+            await repository.UpdateAsync(obj, session);
+            await session.CommitTransactionAsync();
+            var result = await repository.QueryAllAsync();
+            result.Entities.Single().Should().BeEquivalentTo(obj);
+        }
+
+        [Fact]
+        public async void UpdateRollback_ShouldBeVisible()
+        {
+            var obj = new IntObj { Unique = "a", Value = 1 };
+            obj.Id = await repository.InsertAsync(obj);
+
+            var session = await repository.StartSessionAsync();
+            session.StartTransaction();
+
+            var updatedObj = obj.Clone();
+            updatedObj.Unique = "b";
+            updatedObj.Name = "1";
+            updatedObj.Value = 10;
+            await repository.UpdateAsync(updatedObj, session);
+            
+            // Querying outside the transaction should not return new values
+            var result = await repository.QueryAllAsync();
+            result.Entities.Single().Should().BeEquivalentTo(obj);
+            
+            // Querying within the transaction should return new values
+            result = await repository.QueryAllAsync(session: session);
+            result.Entities.Single().Should().BeEquivalentTo(updatedObj);
+
+            // After aborting transaction should return old values
+            await session.AbortTransactionAsync();
+            result = await repository.QueryAllAsync();
+            result.Entities.Single().Should().BeEquivalentTo(obj);
+        }
         
         private class IntObj
         {
@@ -85,6 +129,11 @@ namespace ZBRA.Mongo.Repository.Tests
             public string Name { get; set; }
             public int Value { get; set; }
             public string Unique { get; set; } = Guid.NewGuid().ToString();
+
+            public IntObj Clone()
+            {
+                return (IntObj)MemberwiseClone();
+            }
         }
 
         private class FilterByName : IFilter<IntObj>

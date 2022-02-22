@@ -122,31 +122,23 @@ namespace ZBRA.Mongo.Repository.Impl
             try
             {
                 if (session == null)
-                {
                     await collection.InsertManyAsync(entities);
-                }
                 else
-                {
                     await collection.InsertManyAsync(((SessionHandle)session).InnerSession, entities);
-                }
             }
             catch (Exception ex)
             {
                 if (mapping.UniqueProperty != null && IsDuplicateKeyError(ex as MongoBulkWriteException))
-                {
                     throw new UniqueConstraintException();
-                }
                 throw;
             }
             return entities.Select(i => i["_id"].ToString()).ToArray();
         }
 
-        public async Task UpdateAsync(params T[] instances)
+        public async Task UpdateAsync(T[] instances, ISessionHandle session = null)
         {
             if (instances.Length == 0)
-            {
                 return;
-            }
 
             var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
             foreach (var instance in instances)
@@ -159,20 +151,17 @@ namespace ZBRA.Mongo.Repository.Impl
                 replaceOneModels.Add(replaceOneModel);
             }
             
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
             try
             {
-                await collection.BulkWriteAsync(session, replaceOneModels);
-                await session.CommitTransactionAsync();
+                if (session == null)
+                    await collection.BulkWriteAsync(replaceOneModels);    
+                else
+                    await collection.BulkWriteAsync(((SessionHandle)session).InnerSession, replaceOneModels);
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 if (mapping.UniqueProperty != null && IsDuplicateKeyError(ex as MongoBulkWriteException))
-                {
                     throw new UniqueConstraintException();
-                }
                 throw;
             }
         }
@@ -264,6 +253,7 @@ namespace ZBRA.Mongo.Repository.Impl
         public Task<ResultPage<T>> QueryAllAsync() => QueryAllAsync(null, null, null);
         public async Task<string> InsertAsync(T instance, ISessionHandle session = null) => (await InsertAsync(new[] { instance }, session)).First();
         public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).MaybeFirst();
+        public async Task UpdateAsync(T instance, ISessionHandle session = null) => await UpdateAsync(new[] { instance }, session);
 
         public ResultPage<T> QueryAll() => QueryAllAsync().Result;
         public ResultPage<T> Query<P>(Expression<Func<T, P>> expression, object value, ISessionHandle session = null) => QueryAsync(expression, value, session).Result;
@@ -272,7 +262,8 @@ namespace ZBRA.Mongo.Repository.Impl
         public Maybe<T> FindById(string id, ISessionHandle session = null) => FindByIdAsync(id, session).Result;
         public string Insert(T instance, ISessionHandle session = null) => InsertAsync(instance, session).Result;
         public string[] Insert(T[] instances, ISessionHandle session = null) => InsertAsync(instances, session).Result;
-        public void Update(params T[] instances) => UpdateAsync(instances).Wait();
+        public void Update(T[] instances, ISessionHandle session = null) => UpdateAsync(instances, session).Wait();
+        public void Update(T instance, ISessionHandle session = null) => UpdateAsync(instance, session).Wait();
         public Maybe<string> Upsert(T instance) => UpsertAsync(instance).Result;
         public string[] Upsert(params T[] instances) => UpsertAsync(instances).Result;
         public void Delete(params T[] instances) => DeleteAsync(instances).Wait();

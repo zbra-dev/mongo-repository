@@ -14,7 +14,8 @@ namespace ZBRA.Mongo.Repository
         Maybe<T> FindById(string id, ISessionHandle session = null);
         string Insert(T instance, ISessionHandle session = null);
         string[] Insert(T[] instances, ISessionHandle session = null);
-        void Update(params T[] instances);
+        void Update(T[] instances, ISessionHandle session = null);
+        void Update(T instance, ISessionHandle session = null);
         Maybe<string> Upsert(T instance);
         string[] Upsert(params T[] instances);
         void Delete(params T[] instances);
@@ -27,7 +28,8 @@ namespace ZBRA.Mongo.Repository
         Task<Maybe<T>> FindByIdAsync(string id, ISessionHandle session = null);
         Task<string> InsertAsync(T instance, ISessionHandle session = null);
         Task<string[]> InsertAsync(T[] instances, ISessionHandle session = null);
-        Task UpdateAsync(params T[] instances);
+        Task UpdateAsync(T[] instances, ISessionHandle session = null);
+        Task UpdateAsync(T instance, ISessionHandle session = null);
         Task<Maybe<string>> UpsertAsync(T instance);
         Task<string[]> UpsertAsync(params T[] instances);
         Task DeleteAsync(params T[] instances);
