@@ -1,6 +1,7 @@
 using FluentAssertions;
 using System;
 using System.Linq;
+using FluentAssertions.Common;
 using Xunit;
 using ZBRA.Mongo.Repository.Impl;
 
@@ -143,6 +144,20 @@ namespace ZBRA.Mongo.Repository.Tests
             result.Entities.Should().HaveCount(3);
         }
 
+        [Fact]
+        public async void UpsertIsSupported()
+        {
+            await repository.InsertAsync(new IntObj { Name = "myobj1", Unique = "a" });
+            var result = await repository.QueryAllAsync();
+            var entity = result.Entities.First();
+            entity.Name = "m";
+            entity.Unique = "b";
+            var id = await repository.UpsertAsync(entity);
+            id.HasValue.Should().BeFalse(); // no records was inserted
+            
+            (await repository.QueryAllAsync()).Entities.Single().Should().BeEquivalentTo(entity);
+        }
+        
         [Fact]
         public async void VerifyUniqueWithUpdate()
         {
