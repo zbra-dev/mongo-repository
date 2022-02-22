@@ -119,7 +119,6 @@ namespace ZBRA.Mongo.Repository.Impl
             try
             {
                 await collection.InsertManyAsync(session, entities);
-                await session.CommitTransactionAsync();
             }
             catch (Exception ex)
             {
@@ -130,6 +129,7 @@ namespace ZBRA.Mongo.Repository.Impl
                 }
                 throw;
             }
+            await session.CommitTransactionAsync();
             return entities.Select(i => i["_id"].ToString()).ToArray();
         }
 
