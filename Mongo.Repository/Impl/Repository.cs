@@ -59,11 +59,17 @@ namespace ZBRA.Mongo.Repository.Impl
                 .ToArray();
             return new ResultPage<T>(records, limit.HasValue && result.Count > limit.Value);
         }
-
-        public async Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null)
+        
+        private IFindFluent<BsonDocument, BsonDocument> CreateQuery(FilterDefinition<BsonDocument> filter, ISessionHandle session)
         {
-            var result = await collection
-                .Find(new BsonDocument())
+            return session == null
+                ? collection.Find(filter)
+                : collection.Find(((SessionHandle) session).InnerSession, filter);   
+        }
+
+        public async Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null, ISessionHandle session = null)
+        {
+            var result = await CreateQuery(new BsonDocument(), session)
                 .Limit((limit + 1) * -1) // take one extra record and tells the server to close the cursor afterwards
                 .Skip(skip)
                 .ToListAsync();
@@ -71,13 +77,12 @@ namespace ZBRA.Mongo.Repository.Impl
             return ToPage(result, limit);
         }
 
-        public async Task<ResultPage<T>> QueryAsync(IFilter<T> filter)
+        public async Task<ResultPage<T>> QueryAsync(IFilter<T> filter, ISessionHandle session = null)
         {
             var resolver = new FilterResolver(mapping);
             var filterDefinition = filter.CreateFilter(resolver);
             var sortDefinition = filter.CreateSort(resolver);
-            var result = await collection
-                .Find(filterDefinition)
+            var result = await CreateQuery(filterDefinition, session)
                 .Sort(sortDefinition)
                 .Skip(filter.Skip)
                 .Limit((filter.Take + 1) * -1) // take one extra record and tells the server to close the cursor afterwards
@@ -86,22 +91,22 @@ namespace ZBRA.Mongo.Repository.Impl
             return ToPage(result, filter.Take);
         }
 
-        public async Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value)
+        public async Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value, ISessionHandle session = null)
         {
             var member = expression.ExtractPropertyInfo();
             var fieldName = mapping.GetFieldName(member)
                 .OrThrow(() => new ArgumentException($"Property {member.Name} not found"));
 
-            var result = await collection
-                .Find(new BsonDocument(fieldName, mapping.ConvertToValue(fieldName, value)))
-                .ToListAsync();
+            var filter = new BsonDocument(fieldName, mapping.ConvertToValue(fieldName, value));
+            var result = await CreateQuery(filter, session).ToListAsync();
 
             return new ResultPage<T>(result.Select(i => mapping.FromEntity(i)).ToArray());
         }
 
-        public async Task<Maybe<T>> FindByIdAsync(string id)
+        public async Task<Maybe<T>> FindByIdAsync(string id, ISessionHandle session = null)
         {
-            var result = await collection.Find(new BsonDocument("_id", new ObjectId(id))).ToListAsync();
+            var filter = new BsonDocument("_id", new ObjectId(id));
+            var result = await CreateQuery(filter, session).ToListAsync();
             return result.Select(i => mapping.FromEntity(i)).MaybeSingle();
         }
 
@@ -256,15 +261,15 @@ namespace ZBRA.Mongo.Repository.Impl
             return new SessionHandle(session);
         }
 
-        public Task<ResultPage<T>> QueryAllAsync() => QueryAllAsync(null, null);
+        public Task<ResultPage<T>> QueryAllAsync() => QueryAllAsync(null, null, null);
         public async Task<string> InsertAsync(T instance, ISessionHandle session = null) => (await InsertAsync(new[] { instance }, session)).First();
         public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).MaybeFirst();
 
         public ResultPage<T> QueryAll() => QueryAllAsync().Result;
-        public ResultPage<T> Query<P>(Expression<Func<T, P>> expression, object value) => QueryAsync(expression, value).Result;
-        public ResultPage<T> Query(IFilter<T> filter) => QueryAsync(filter).Result;
-        public ResultPage<T> QueryAll(int? limit = null, int? skip = null) => QueryAllAsync(limit, skip).Result;
-        public Maybe<T> FindById(string id) => FindByIdAsync(id).Result;
+        public ResultPage<T> Query<P>(Expression<Func<T, P>> expression, object value, ISessionHandle session = null) => QueryAsync(expression, value, session).Result;
+        public ResultPage<T> Query(IFilter<T> filter, ISessionHandle session = null) => QueryAsync(filter, session).Result;
+        public ResultPage<T> QueryAll(int? limit = null, int? skip = null, ISessionHandle session = null) => QueryAllAsync(limit, skip, session).Result;
+        public Maybe<T> FindById(string id, ISessionHandle session = null) => FindByIdAsync(id, session).Result;
         public string Insert(T instance, ISessionHandle session = null) => InsertAsync(instance, session).Result;
         public string[] Insert(T[] instances, ISessionHandle session = null) => InsertAsync(instances, session).Result;
         public void Update(params T[] instances) => UpdateAsync(instances).Wait();

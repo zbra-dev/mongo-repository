@@ -81,8 +81,10 @@ namespace ZBRA.Mongo.Repository.Mock
 
         public ISessionHandle StartSession() => throw new NotImplementedException();
 
-        public async Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value)
+        public async Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value, ISessionHandle session = null)
         {
+            if (session != null)
+                throw new NotImplementedException();
             var property = expression.ExtractPropertyInfo();
             var result = await QueryAllAsync();
             return new ResultPage<T>(result.Entities.Where(v => Equals(property.GetValue(v), value)).ToArray(), result.HasMoreResults);
@@ -115,29 +117,33 @@ namespace ZBRA.Mongo.Repository.Mock
             return result.ToArray();
         }
 
-        public async Task<ResultPage<T>> QueryAsync(IFilter<T> filter)
+        public async Task<ResultPage<T>> QueryAsync(IFilter<T> filter, ISessionHandle session = null)
         {
+            if (session != null)
+                throw new NotImplementedException();
             if (!filterMap.TryGetValue(filter.GetType(), out var filterFunc))
                 throw new ArgumentException($"Filter [{filter.GetType()}] hasn't been mapped");
             var result = await QueryAllAsync();
             return filterFunc(filter, result);
         }
 
-        public async Task<Maybe<T>> FindByIdAsync(string id)
+        public async Task<Maybe<T>> FindByIdAsync(string id, ISessionHandle session = null)
         {
+            if (session != null)
+                throw new NotImplementedException();
             return map.MaybeGet(id).Select(e => mapping.FromEntity(e));
         }
 
         public async Task<ResultPage<T>> QueryAllAsync() => new ResultPage<T>(map.Values.Select(i => mapping.FromEntity(i)).ToArray());
-        public Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null) => throw new NotImplementedException();
+        public Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null, ISessionHandle session = null) => throw new NotImplementedException();
         public async Task<string> InsertAsync(T instance, ISessionHandle session = null) => (await InsertAsync(new[] { instance }, session)).First();
         public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).MaybeFirst();
 
-        public Maybe<T> FindById(string id) => FindByIdAsync(id).Result;
-        public ResultPage<T> Query(IFilter<T> filter) => QueryAsync(filter).Result;
-        public ResultPage<T> Query<P>(Expression<Func<T, P>> expression, object value) => QueryAsync(expression, value).Result;
+        public Maybe<T> FindById(string id, ISessionHandle session = null) => FindByIdAsync(id, session).Result;
+        public ResultPage<T> Query(IFilter<T> filter, ISessionHandle session = null) => QueryAsync(filter, session).Result;
+        public ResultPage<T> Query<P>(Expression<Func<T, P>> expression, object value, ISessionHandle session = null) => QueryAsync(expression, value, session).Result;
         public ResultPage<T> QueryAll() => QueryAllAsync().Result;
-        public ResultPage<T> QueryAll(int? limit = null, int? skip = null) => QueryAllAsync(limit, skip).Result;
+        public ResultPage<T> QueryAll(int? limit = null, int? skip = null, ISessionHandle session = null) => QueryAllAsync(limit, skip, session).Result;
         public string Insert(T instance, ISessionHandle session = null) => InsertAsync(instance, session).Result;
         public string[] Insert(T[] instances, ISessionHandle session = null) => InsertAsync(instances, session).Result;
         public void Update(params T[] instances) => UpdateAsync(instances).Wait();
