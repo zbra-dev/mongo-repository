@@ -91,7 +91,7 @@ namespace ZBRA.Mongo.Repository.Impl
             return ToPage(result, filter.Take);
         }
 
-        public async Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value, ISessionHandle session = null)
+        public async Task<ResultPage<T>> QueryAsync<TP>(Expression<Func<T, TP>> expression, object value, ISessionHandle session = null)
         {
             var member = expression.ExtractPropertyInfo();
             var fieldName = mapping.GetFieldName(member)
@@ -153,7 +153,7 @@ namespace ZBRA.Mongo.Repository.Impl
             
             try
             {
-                var result = session == null ?
+                var _ = session == null ?
                     await collection.BulkWriteAsync(replaceOneModels) :    
                     await collection.BulkWriteAsync(((SessionHandle)session).InnerSession, replaceOneModels);
             }
@@ -196,45 +196,27 @@ namespace ZBRA.Mongo.Repository.Impl
             }
         }
 
-        public async Task DeleteAsync(params T[] instances)
+        public async Task DeleteAsync(T[] instances, ISessionHandle session = null)
         {
             if (instances.Length == 0)
                 return;
             var ids = instances.Select(i => new ObjectId(mapping.GetKeyValue(i))).ToArray();
             var filter = Builders<BsonDocument>.Filter.In("_id", ids);
             
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
-            try
-            {
-                await collection.DeleteManyAsync(session, filter);
-                await session.CommitTransactionAsync();
-            }
-            catch (Exception)
-            {
-                await session.AbortTransactionAsync();
-                throw;
-            }
+            var _ = session == null
+                ? await collection.DeleteManyAsync(filter)
+                : await collection.DeleteManyAsync(((SessionHandle)session).InnerSession, filter);
         }
 
-        public async Task DeleteAsync(params string[] ids)
+        public async Task DeleteAsync(string[] ids, ISessionHandle session = null)
         {
             if (ids.Length == 0)
                 return;
 
             var filter = Builders<BsonDocument>.Filter.In("_id", ids.Select(id => new ObjectId(id)).ToArray());
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
-            try
-            {
-                await collection.DeleteManyAsync(session, filter);
-                await session.CommitTransactionAsync();
-            }
-            catch (Exception)
-            {
-                await session.AbortTransactionAsync();
-                throw;
-            }
+            var _ = session == null
+                ? await collection.DeleteManyAsync(filter)
+                : await collection.DeleteManyAsync(((SessionHandle)session).InnerSession, filter);
         }
 
         public async Task<ISessionHandle> StartSessionAsync()
@@ -243,13 +225,13 @@ namespace ZBRA.Mongo.Repository.Impl
             return new SessionHandle(session);
         }
 
-        public Task<ResultPage<T>> QueryAllAsync() => QueryAllAsync(null, null, null);
         public async Task<string> InsertAsync(T instance, ISessionHandle session = null) => (await InsertAsync(new[] { instance }, session)).First();
         public async Task<Maybe<string>> UpsertAsync(T instance, ISessionHandle session = null) => (await UpsertAsync(new[] { instance }, session)).MaybeFirst();
         public async Task UpdateAsync(T instance, ISessionHandle session = null) => await UpdateAsync(new[] { instance }, session);
+        public async Task DeleteAsync(T instance, ISessionHandle session = null) => await DeleteAsync(new []{ instance }, session);
+        public async Task DeleteAsync(string id, ISessionHandle session = null) => await DeleteAsync(new []{ id }, session);
 
-        public ResultPage<T> QueryAll() => QueryAllAsync().Result;
-        public ResultPage<T> Query<P>(Expression<Func<T, P>> expression, object value, ISessionHandle session = null) => QueryAsync(expression, value, session).Result;
+        public ResultPage<T> Query<TP>(Expression<Func<T, TP>> expression, object value, ISessionHandle session = null) => QueryAsync(expression, value, session).Result;
         public ResultPage<T> Query(IFilter<T> filter, ISessionHandle session = null) => QueryAsync(filter, session).Result;
         public ResultPage<T> QueryAll(int? limit = null, int? skip = null, ISessionHandle session = null) => QueryAllAsync(limit, skip, session).Result;
         public Maybe<T> FindById(string id, ISessionHandle session = null) => FindByIdAsync(id, session).Result;
@@ -259,11 +241,13 @@ namespace ZBRA.Mongo.Repository.Impl
         public void Update(T instance, ISessionHandle session = null) => UpdateAsync(instance, session).Wait();
         public Maybe<string> Upsert(T instance, ISessionHandle session = null) => UpsertAsync(instance, session).Result;
         public string[] Upsert(T[] instances, ISessionHandle session = null) => UpsertAsync(instances, session).Result;
-        public void Delete(params T[] instances) => DeleteAsync(instances).Wait();
-        public void Delete(params string[] ids) => DeleteAsync(ids).Wait();
+        public void Delete(T instance, ISessionHandle session = null) => DeleteAsync(instance, session).Wait();
+        public void Delete(T[] instances, ISessionHandle session = null) => DeleteAsync(instances, session).Wait();
+        public void Delete(string[] ids, ISessionHandle session = null) => DeleteAsync(ids, session).Wait();
+        public void Delete(string id, ISessionHandle session = null) => DeleteAsync(id, session).Wait();
         public ISessionHandle StartSession() => StartSessionAsync().Result;
 
-        internal class FilterResolver : IFieldResolver<T>
+        private class FilterResolver : IFieldResolver<T>
         {
             private readonly IEntityMapping<T> mapping;
 
@@ -272,7 +256,7 @@ namespace ZBRA.Mongo.Repository.Impl
                 this.mapping = mapping;
             }
 
-            public string FieldName<P>(Expression<Func<T, P>> expression)
+            public string FieldName<TP>(Expression<Func<T, TP>> expression)
             {
                 var property = expression.ExtractPropertyInfo();
                 return mapping.GetFieldName(property)

@@ -11,9 +11,9 @@ namespace ZBRA.Mongo.Repository.Mock
 {
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
 
-    /// <summary>Class <c>RepositoryMock<></c> is meant to be used in very simple test cases.
+    /// <summary>Class <c>RepositoryMock&lt;T&gt;</c> is meant to be used in very simple test cases.
     /// Overall its usage is discouraged and it will be removed in future versions.
-    /// Instead tests should be done using a DatastoreFixture.
+    /// Instead tests should be done using a MongoDBFixture.
     /// </summary>
     public class RepositoryMock<T> : IRepository<T>
     {
@@ -36,9 +36,9 @@ namespace ZBRA.Mongo.Repository.Mock
         }
 
         public void Clear() => map.Clear();
-        public void AddFilterFunc<F>(Func<IFilter<T>, ResultPage<T>, ResultPage<T>> filterFunc) where F : IFilter<T> => filterMap[typeof(F)] = filterFunc;
+        public void AddFilterFunc<TF>(Func<IFilter<T>, ResultPage<T>, ResultPage<T>> filterFunc) where TF : IFilter<T> => filterMap[typeof(TF)] = filterFunc;
         
-        private ObjectId CreateId(BsonDocument document)
+        private static ObjectId CreateId(BsonDocument document)
         {
             return new ObjectId(Guid.NewGuid().ToString("N"));
         }
@@ -46,9 +46,7 @@ namespace ZBRA.Mongo.Repository.Mock
         private long GenerateKey()
         {
             var key = random.Next();
-            if (!map.ContainsKey(key.ToString()))
-                return key;
-            return GenerateKey();
+            return !map.ContainsKey(key.ToString()) ? key : GenerateKey();
         }
 
         public async Task<string[]> InsertAsync(T[] instances, ISessionHandle session = null)
@@ -65,14 +63,18 @@ namespace ZBRA.Mongo.Repository.Mock
                 }).ToArray();
         }
 
-        public async Task DeleteAsync(params T[] instances)
+        public async Task DeleteAsync(T[] instances, ISessionHandle session = null)
         {
+            if (session != null)
+                throw new NotImplementedException();
             foreach (var instance in instances)
                 map.Remove(mapping.GetKeyValue(instance));
         }
 
-        public async Task DeleteAsync(params string[] ids)
+        public async Task DeleteAsync(string[] ids, ISessionHandle session = null)
         {
+            if (session != null)
+                throw new NotImplementedException();
             foreach (var id in ids)
                 map.Remove(id);
         }
@@ -81,7 +83,7 @@ namespace ZBRA.Mongo.Repository.Mock
 
         public ISessionHandle StartSession() => throw new NotImplementedException();
 
-        public async Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value, ISessionHandle session = null)
+        public async Task<ResultPage<T>> QueryAsync<TP>(Expression<Func<T, TP>> expression, object value, ISessionHandle session = null)
         {
             if (session != null)
                 throw new NotImplementedException();
@@ -131,6 +133,15 @@ namespace ZBRA.Mongo.Repository.Mock
             return filterFunc(filter, result);
         }
 
+        public async Task<ResultPage<T>> QueryAllAsync(int? skip = null, int? take = null, ISessionHandle session = null)
+        {
+            if (session != null)
+                throw new NotImplementedException();
+            var result = map.Values.Select(i => mapping.FromEntity(i)).ToArray();
+            return new ResultPage<T>(result.Skip(skip ?? 0).Take(take ?? int.MaxValue).ToArray());
+        }
+
+
         public async Task<Maybe<T>> FindByIdAsync(string id, ISessionHandle session = null)
         {
             if (session != null)
@@ -138,16 +149,15 @@ namespace ZBRA.Mongo.Repository.Mock
             return map.MaybeGet(id).Select(e => mapping.FromEntity(e));
         }
 
-        public async Task<ResultPage<T>> QueryAllAsync() => new ResultPage<T>(map.Values.Select(i => mapping.FromEntity(i)).ToArray());
-        public Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null, ISessionHandle session = null) => throw new NotImplementedException();
         public async Task<string> InsertAsync(T instance, ISessionHandle session = null) => (await InsertAsync(new[] { instance }, session)).First();
         public async Task<Maybe<string>> UpsertAsync(T instance, ISessionHandle session = null) => (await UpsertAsync(new[] { instance }, session)).MaybeFirst();
         public async Task UpdateAsync(T instance, ISessionHandle session = null) => await UpdateAsync(new []{ instance }, session);
-
+        public async Task DeleteAsync(T instance, ISessionHandle session = null) => await DeleteAsync(new []{ instance }, session);
+        public async Task DeleteAsync(string id, ISessionHandle session = null) => await DeleteAsync(new []{ id }, session);
+        
         public Maybe<T> FindById(string id, ISessionHandle session = null) => FindByIdAsync(id, session).Result;
         public ResultPage<T> Query(IFilter<T> filter, ISessionHandle session = null) => QueryAsync(filter, session).Result;
-        public ResultPage<T> Query<P>(Expression<Func<T, P>> expression, object value, ISessionHandle session = null) => QueryAsync(expression, value, session).Result;
-        public ResultPage<T> QueryAll() => QueryAllAsync().Result;
+        public ResultPage<T> Query<TP>(Expression<Func<T, TP>> expression, object value, ISessionHandle session = null) => QueryAsync(expression, value, session).Result;
         public ResultPage<T> QueryAll(int? limit = null, int? skip = null, ISessionHandle session = null) => QueryAllAsync(limit, skip, session).Result;
         public string Insert(T instance, ISessionHandle session = null) => InsertAsync(instance, session).Result;
         public string[] Insert(T[] instances, ISessionHandle session = null) => InsertAsync(instances, session).Result;
@@ -155,8 +165,10 @@ namespace ZBRA.Mongo.Repository.Mock
         public void Update(T instance, ISessionHandle session = null) => UpdateAsync(instance, session).Wait();
         public Maybe<string> Upsert(T instance, ISessionHandle session = null) => UpsertAsync(instance, session).Result;
         public string[] Upsert(T[] instances, ISessionHandle session = null) => UpsertAsync(instances, session).Result;
-        public void Delete(params T[] instances) => DeleteAsync(instances).Wait();
-        public void Delete(params string[] ids) => DeleteAsync(ids).Wait();
+        public void Delete(T[] instances, ISessionHandle session = null) => DeleteAsync(instances, session).Wait();
+        public void Delete(T instance, ISessionHandle session = null) => DeleteAsync(instance, session).Wait();
+        public void Delete(string[] ids, ISessionHandle session = null) => DeleteAsync(ids, session).Wait();
+        public void Delete(string id, ISessionHandle session = null) => DeleteAsync(id, session).Wait();
     }
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 }

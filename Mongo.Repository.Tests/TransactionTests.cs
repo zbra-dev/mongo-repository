@@ -123,6 +123,45 @@ namespace ZBRA.Mongo.Repository.Tests
             result.Entities.Single().Should().BeEquivalentTo(obj);
         }
         
+        [Fact]
+        public async void Delete_ShouldSucceed()
+        {
+            var obj = new IntObj {Unique = "a", Value = 1};
+            obj.Id = await repository.InsertAsync(obj);
+
+            var session = await repository.StartSessionAsync();
+            session.StartTransaction();
+            await repository.DeleteAsync(obj, session);
+            await session.CommitTransactionAsync();
+            var result = await repository.QueryAllAsync();
+            result.Entities.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async void DeleteRollback_ShouldBeVisible()
+        {
+            var obj = new IntObj { Unique = "a", Value = 1 };
+            obj.Id = await repository.InsertAsync(obj);
+
+            var session = await repository.StartSessionAsync();
+            session.StartTransaction();
+
+            await repository.DeleteAsync(obj.Id, session);
+            
+            // Querying outside the transaction should still return inserted obj
+            var result = await repository.QueryAllAsync();
+            result.Entities.Single().Should().BeEquivalentTo(obj);
+            
+            // Querying within the transaction should return empty
+            result = await repository.QueryAllAsync(session: session);
+            result.Entities.Should().BeEmpty();
+
+            // After aborting transaction should return old values
+            await session.AbortTransactionAsync();
+            result = await repository.QueryAllAsync();
+            result.Entities.Single().Should().BeEquivalentTo(obj);
+        }
+        
         private class IntObj
         {
             public string Id { get; set; }
