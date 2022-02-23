@@ -152,11 +152,11 @@ namespace ZBRA.Mongo.Repository.Tests
             entity.Name = "m";
             entity.Unique = "b";
             var id = await repository.UpsertAsync(entity);
-            id.HasValue.Should().BeFalse(); // no records was inserted
+            id.HasValue.Should().BeFalse(); // no record was inserted
             
             (await repository.QueryAllAsync()).Entities.Single().Should().BeEquivalentTo(entity);
         }
-        
+
         [Fact]
         public async void VerifyUniqueWithUpdate()
         {
