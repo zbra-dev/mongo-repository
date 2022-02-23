@@ -1,6 +1,6 @@
-using FluentAssertions;
 using System;
 using System.Linq;
+using FluentAssertions;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Xunit;

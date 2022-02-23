@@ -1,7 +1,6 @@
-using FluentAssertions;
 using System;
 using System.Linq;
-using FluentAssertions.Common;
+using FluentAssertions;
 using Xunit;
 using ZBRA.Mongo.Repository.Impl;
 

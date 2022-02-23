@@ -1,6 +1,6 @@
-using FluentAssertions;
 using System;
 using System.Linq;
+using FluentAssertions;
 using Xunit;
 using ZBRA.Mongo.Repository.Mock;
 

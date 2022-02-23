@@ -1,7 +1,7 @@
-﻿using FluentAssertions;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using ZBRA.Mongo.Repository.Impl;
 

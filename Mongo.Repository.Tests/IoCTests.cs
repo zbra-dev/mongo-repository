@@ -1,7 +1,7 @@
+using System.Linq;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
-using System.Linq;
 using Xunit;
 
 namespace ZBRA.Mongo.Repository.Tests

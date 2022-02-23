@@ -1,6 +1,6 @@
-using FluentAssertions;
 using System;
 using System.Collections.Generic;
+using FluentAssertions;
 using Xunit;
 
 namespace ZBRA.Mongo.Repository.Tests

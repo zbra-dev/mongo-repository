@@ -1,10 +1,10 @@
-using FluentAssertions;
-using MongoDB.Bson;
-using MongoDB.Driver;
 using System;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using FluentAssertions;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Xunit;
 using ZBRA.Mongo.Repository.Impl;
 
@@ -204,7 +204,7 @@ namespace ZBRA.Mongo.Repository.Tests
 
         private class NoProperty
         {
-            public string data = "a";
+            public readonly string data = "a";
         }
 
         private class NoSetterStringQuery : IFilter<NoSetter>
