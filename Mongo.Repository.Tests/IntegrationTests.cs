@@ -1,6 +1,6 @@
-using FluentAssertions;
 using System;
 using System.Linq;
+using FluentAssertions;
 using Xunit;
 using ZBRA.Mongo.Repository.Impl;
 
@@ -67,10 +67,13 @@ namespace ZBRA.Mongo.Repository.Tests
                 new IntObj { Unique = "a" },
                 new IntObj { Unique = "a" },
             };
+            var session = await repository.StartSessionAsync();
+            session.StartTransaction();
             repository
-                .Awaiting(r => r.InsertAsync(objs))
+                .Awaiting(r => r.InsertAsync(objs, session))
                 .Should()
                 .ThrowExactly<UniqueConstraintException>();
+            await session.AbortTransactionAsync();
             var result = await repository.QueryAllAsync();
             result.Entities.Should().HaveCount(1);
         }
@@ -141,14 +144,17 @@ namespace ZBRA.Mongo.Repository.Tests
         }
 
         [Fact]
-        public async void UpsertIsNotSupported()
+        public async void UpsertIsSupported()
         {
             await repository.InsertAsync(new IntObj { Name = "myobj1", Unique = "a" });
             var result = await repository.QueryAllAsync();
             var entity = result.Entities.First();
             entity.Name = "m";
             entity.Unique = "b";
-            repository.Awaiting(r => r.UpsertAsync(entity)).Should().Throw<InvalidOperationException>();
+            var id = await repository.UpsertAsync(entity);
+            id.HasValue.Should().BeFalse(); // no record was inserted
+            
+            (await repository.QueryAllAsync()).Entities.Single().Should().BeEquivalentTo(entity);
         }
 
         [Fact]
@@ -184,7 +190,7 @@ namespace ZBRA.Mongo.Repository.Tests
             result.Entities.Select(e => e.Unique).Distinct().Should().BeEquivalentTo(new[] { "a", "b", "c" });
         }
 
-        public class IntObj
+        private class IntObj
         {
             public string Id { get; set; }
             public string Name { get; set; }

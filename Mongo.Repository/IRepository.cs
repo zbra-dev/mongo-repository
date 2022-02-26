@@ -7,30 +7,36 @@ namespace ZBRA.Mongo.Repository
 {
     public interface IRepository<T>
     {
-        ResultPage<T> Query(IFilter<T> filter);
-        ResultPage<T> Query<P>(Expression<Func<T, P>> expression, object value);
-        ResultPage<T> QueryAll();
-        ResultPage<T> QueryAll(int? limit = null, int? skip = null);
-        Maybe<T> FindById(string id);
-        string Insert(T instance);
-        string[] Insert(params T[] instances);
-        void Update(params T[] instances);
-        Maybe<string> Upsert(T instance);
-        Maybe<string>[] Upsert(params T[] instances);
-        void Delete(params T[] instances);
-        void Delete(params string[] ids);
+        ResultPage<T> Query(IFilter<T> filter, ISessionHandle session = null);
+        ResultPage<T> Query<TP>(Expression<Func<T, TP>> expression, object value, ISessionHandle session = null);
+        ResultPage<T> QueryAll(int? limit = null, int? skip = null, ISessionHandle session = null);
+        Maybe<T> FindById(string id, ISessionHandle session = null);
+        string Insert(T instance, ISessionHandle session = null);
+        string[] Insert(T[] instances, ISessionHandle session = null);
+        void Update(T[] instances, ISessionHandle session = null);
+        void Update(T instance, ISessionHandle session = null);
+        Maybe<string> Upsert(T instance, ISessionHandle session = null);
+        string[] Upsert(T[] instances, ISessionHandle session = null);
+        void Delete(T[] instances, ISessionHandle session = null);
+        void Delete(T instance, ISessionHandle session = null);
+        void Delete(string[] ids, ISessionHandle session = null);
+        void Delete(string id, ISessionHandle session = null);
 
-        Task<ResultPage<T>> QueryAsync(IFilter<T> filter);
-        Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value);
-        Task<ResultPage<T>> QueryAllAsync();
-        Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null);
-        Task<Maybe<T>> FindByIdAsync(string id);
-        Task<string> InsertAsync(T instance);
-        Task<string[]> InsertAsync(params T[] instances);
-        Task UpdateAsync(params T[] instances);
-        Task<Maybe<string>> UpsertAsync(T instance);
-        Task<Maybe<string>[]> UpsertAsync(params T[] instances);
-        Task DeleteAsync(params T[] instances);
-        Task DeleteAsync(params string[] ids);
+        Task<ResultPage<T>> QueryAsync(IFilter<T> filter, ISessionHandle session = null);
+        Task<ResultPage<T>> QueryAsync<TP>(Expression<Func<T, TP>> expression, object value, ISessionHandle session = null);
+        Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null, ISessionHandle session = null);
+        Task<Maybe<T>> FindByIdAsync(string id, ISessionHandle session = null);
+        Task<string> InsertAsync(T instance, ISessionHandle session = null);
+        Task<string[]> InsertAsync(T[] instances, ISessionHandle session = null);
+        Task UpdateAsync(T[] instances, ISessionHandle session = null);
+        Task UpdateAsync(T instance, ISessionHandle session = null);
+        Task<Maybe<string>> UpsertAsync(T instance, ISessionHandle session = null);
+        Task<string[]> UpsertAsync(T[] instances, ISessionHandle session = null);
+        Task DeleteAsync(T[] instances, ISessionHandle session = null);
+        Task DeleteAsync(T instance, ISessionHandle session = null);
+        Task DeleteAsync(string id, ISessionHandle session = null);
+        Task DeleteAsync(string[] ids, ISessionHandle session = null);
+        Task<ISessionHandle> StartSessionAsync();
+        ISessionHandle StartSession();
     }
 }

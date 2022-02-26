@@ -1,8 +1,9 @@
-using DockerComposeFixture;
-using MongoDB.Driver;
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using DockerComposeFixture;
+using MongoDB.Driver;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -48,10 +49,8 @@ namespace ZBRA.Mongo.Repository.Tests
             var db = GetDb();
             var collections = db.ListCollectionNames().ToList();
 
-            foreach (var collection in collections)
-            {
-                db.DropCollection(collection);
-            }
+            var tasks = collections.Select(c => db.DropCollectionAsync(c));
+            Task.WaitAll(tasks.ToArray());
         }
 
         public IMongoDatabase GetDb()

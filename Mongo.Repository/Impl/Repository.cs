@@ -1,12 +1,12 @@
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.IdGenerators;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.IdGenerators;
+using MongoDB.Driver;
 using ZBRA.Maybe;
 
 namespace ZBRA.Mongo.Repository.Impl
@@ -59,11 +59,17 @@ namespace ZBRA.Mongo.Repository.Impl
                 .ToArray();
             return new ResultPage<T>(records, limit.HasValue && result.Count > limit.Value);
         }
-
-        public async Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null)
+        
+        private IFindFluent<BsonDocument, BsonDocument> CreateQuery(FilterDefinition<BsonDocument> filter, ISessionHandle session)
         {
-            var result = await collection
-                .Find(new BsonDocument())
+            return session == null
+                ? collection.Find(filter)
+                : collection.Find(((SessionHandle) session).InnerSession, filter);   
+        }
+
+        public async Task<ResultPage<T>> QueryAllAsync(int? limit = null, int? skip = null, ISessionHandle session = null)
+        {
+            var result = await CreateQuery(new BsonDocument(), session)
                 .Limit((limit + 1) * -1) // take one extra record and tells the server to close the cursor afterwards
                 .Skip(skip)
                 .ToListAsync();
@@ -71,13 +77,12 @@ namespace ZBRA.Mongo.Repository.Impl
             return ToPage(result, limit);
         }
 
-        public async Task<ResultPage<T>> QueryAsync(IFilter<T> filter)
+        public async Task<ResultPage<T>> QueryAsync(IFilter<T> filter, ISessionHandle session = null)
         {
             var resolver = new FilterResolver(mapping);
             var filterDefinition = filter.CreateFilter(resolver);
             var sortDefinition = filter.CreateSort(resolver);
-            var result = await collection
-                .Find(filterDefinition)
+            var result = await CreateQuery(filterDefinition, session)
                 .Sort(sortDefinition)
                 .Skip(filter.Skip)
                 .Limit((filter.Take + 1) * -1) // take one extra record and tells the server to close the cursor afterwards
@@ -86,26 +91,26 @@ namespace ZBRA.Mongo.Repository.Impl
             return ToPage(result, filter.Take);
         }
 
-        public async Task<ResultPage<T>> QueryAsync<P>(Expression<Func<T, P>> expression, object value)
+        public async Task<ResultPage<T>> QueryAsync<TP>(Expression<Func<T, TP>> expression, object value, ISessionHandle session = null)
         {
             var member = expression.ExtractPropertyInfo();
             var fieldName = mapping.GetFieldName(member)
                 .OrThrow(() => new ArgumentException($"Property {member.Name} not found"));
 
-            var result = await collection
-                .Find(new BsonDocument(fieldName, mapping.ConvertToValue(fieldName, value)))
-                .ToListAsync();
+            var filter = new BsonDocument(fieldName, mapping.ConvertToValue(fieldName, value));
+            var result = await CreateQuery(filter, session).ToListAsync();
 
             return new ResultPage<T>(result.Select(i => mapping.FromEntity(i)).ToArray());
         }
 
-        public async Task<Maybe<T>> FindByIdAsync(string id)
+        public async Task<Maybe<T>> FindByIdAsync(string id, ISessionHandle session = null)
         {
-            var result = await collection.Find(new BsonDocument("_id", new ObjectId(id))).ToListAsync();
+            var filter = new BsonDocument("_id", new ObjectId(id));
+            var result = await CreateQuery(filter, session).ToListAsync();
             return result.Select(i => mapping.FromEntity(i)).MaybeSingle();
         }
 
-        public async Task<string[]> InsertAsync(params T[] instances)
+        public async Task<string[]> InsertAsync(T[] instances, ISessionHandle session = null)
         {
             if (instances.Length == 0)
                 return new string[] { };
@@ -114,31 +119,26 @@ namespace ZBRA.Mongo.Repository.Impl
                 throw new PersistenceException("Cannot insert instance that already has key set");
 
             var entities = instances.Select(i => mapping.ToEntity(i, CreateId)).ToArray();
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
             try
             {
-                await collection.InsertManyAsync(session, entities);
-                await session.CommitTransactionAsync();
+                if (session == null)
+                    await collection.InsertManyAsync(entities);
+                else
+                    await collection.InsertManyAsync(((SessionHandle)session).InnerSession, entities);
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 if (mapping.UniqueProperty != null && IsDuplicateKeyError(ex as MongoBulkWriteException))
-                {
                     throw new UniqueConstraintException();
-                }
                 throw;
             }
             return entities.Select(i => i["_id"].ToString()).ToArray();
         }
 
-        public async Task UpdateAsync(params T[] instances)
+        public async Task UpdateAsync(T[] instances, ISessionHandle session = null)
         {
             if (instances.Length == 0)
-            {
                 return;
-            }
 
             var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
             foreach (var instance in instances)
@@ -151,120 +151,103 @@ namespace ZBRA.Mongo.Repository.Impl
                 replaceOneModels.Add(replaceOneModel);
             }
             
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
             try
             {
-                await collection.BulkWriteAsync(session, replaceOneModels);
-                await session.CommitTransactionAsync();
+                var _ = session == null ?
+                    await collection.BulkWriteAsync(replaceOneModels) :    
+                    await collection.BulkWriteAsync(((SessionHandle)session).InnerSession, replaceOneModels);
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 if (mapping.UniqueProperty != null && IsDuplicateKeyError(ex as MongoBulkWriteException))
-                {
                     throw new UniqueConstraintException();
-                }
                 throw;
             }
         }
 
-        public async Task<Maybe<string>[]> UpsertAsync(params T[] instances)
+        public async Task<string[]> UpsertAsync(T[] instances, ISessionHandle session = null)
         {
             if (instances.Length == 0)
             {
-                return Array.Empty<Maybe<string>>();
+                return Array.Empty<string>();
             }
 
-            var replaceOneModels = new List<ReplaceOneModel<BsonDocument>>();
-            foreach (var instance in instances)
-            {
-                var entity = mapping.ToEntity(instance, CreateId);
-                var replaceOneModel = new ReplaceOneModel<BsonDocument>(new BsonDocument("_id", entity["_id"].AsObjectId), entity)
-                {
-                    IsUpsert = true,
-                };
-                replaceOneModels.Add(replaceOneModel);
-            }
+            var replaceOneModels = instances
+                .Select(instance => mapping.ToEntity(instance, CreateId))
+                .Select(entity => new ReplaceOneModel<BsonDocument>(
+                    new BsonDocument("_id", entity["_id"].AsObjectId), entity)
+                    {
+                        IsUpsert = true,
+                    })
+                .ToList();
 
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
             try
             {
-                var result = await collection.BulkWriteAsync(session, replaceOneModels);
-                await session.CommitTransactionAsync();
-                return result.Upserts.Select(u => u.Id.ToMaybe().Select(i => i.ToString())).ToArray();
+                var result = session == null ?
+                    await collection.BulkWriteAsync(replaceOneModels):
+                    await collection.BulkWriteAsync(((SessionHandle)session).InnerSession, replaceOneModels);
+                return result.Upserts.Select(u => u.Id.AsObjectId.ToString()).ToArray();
             }
             catch (Exception ex)
             {
-                await session.AbortTransactionAsync();
                 if (mapping.UniqueProperty != null && IsDuplicateKeyError(ex as MongoBulkWriteException))
-                {
                     throw new UniqueConstraintException();
-                }
                 throw;
             }
         }
 
-        public async Task DeleteAsync(params T[] instances)
+        public async Task DeleteAsync(T[] instances, ISessionHandle session = null)
         {
             if (instances.Length == 0)
                 return;
             var ids = instances.Select(i => new ObjectId(mapping.GetKeyValue(i))).ToArray();
             var filter = Builders<BsonDocument>.Filter.In("_id", ids);
             
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
-            try
-            {
-                await collection.DeleteManyAsync(session, filter);
-                await session.CommitTransactionAsync();
-            }
-            catch (Exception)
-            {
-                await session.AbortTransactionAsync();
-                throw;
-            }
+            var _ = session == null
+                ? await collection.DeleteManyAsync(filter)
+                : await collection.DeleteManyAsync(((SessionHandle)session).InnerSession, filter);
         }
 
-        public async Task DeleteAsync(params string[] ids)
+        public async Task DeleteAsync(string[] ids, ISessionHandle session = null)
         {
             if (ids.Length == 0)
                 return;
 
             var filter = Builders<BsonDocument>.Filter.In("_id", ids.Select(id => new ObjectId(id)).ToArray());
-            using var session = await client.StartSessionAsync();
-            session.StartTransaction();
-            try
-            {
-                await collection.DeleteManyAsync(session, filter);
-                await session.CommitTransactionAsync();
-            }
-            catch (Exception)
-            {
-                await session.AbortTransactionAsync();
-                throw;
-            }
+            var _ = session == null
+                ? await collection.DeleteManyAsync(filter)
+                : await collection.DeleteManyAsync(((SessionHandle)session).InnerSession, filter);
         }
 
-        public Task<ResultPage<T>> QueryAllAsync() => QueryAllAsync(null, null);
-        public async Task<string> InsertAsync(T instance) => (await InsertAsync(new[] { instance })).First();
-        public async Task<Maybe<string>> UpsertAsync(T instance) => (await UpsertAsync(new[] { instance })).First();
+        public async Task<ISessionHandle> StartSessionAsync()
+        {
+            var session = await client.StartSessionAsync();
+            return new SessionHandle(session);
+        }
 
-        public ResultPage<T> QueryAll() => QueryAllAsync().Result;
-        public ResultPage<T> Query<P>(Expression<Func<T, P>> expression, object value) => QueryAsync(expression, value).Result;
-        public ResultPage<T> Query(IFilter<T> filter) => QueryAsync(filter).Result;
-        public ResultPage<T> QueryAll(int? limit = null, int? skip = null) => QueryAllAsync(limit, skip).Result;
-        public Maybe<T> FindById(string id) => FindByIdAsync(id).Result;
-        public string Insert(T instance) => InsertAsync(instance).Result;
-        public string[] Insert(params T[] instances) => InsertAsync(instances).Result;
-        public void Update(params T[] instances) => UpdateAsync(instances).Wait();
-        public Maybe<string> Upsert(T instance) => UpsertAsync(instance).Result;
-        public Maybe<string>[] Upsert(params T[] instances) => UpsertAsync(instances).Result;
-        public void Delete(params T[] instances) => DeleteAsync(instances).Wait();
-        public void Delete(params string[] ids) => DeleteAsync(ids).Wait();
+        public async Task<string> InsertAsync(T instance, ISessionHandle session = null) => (await InsertAsync(new[] { instance }, session)).First();
+        public async Task<Maybe<string>> UpsertAsync(T instance, ISessionHandle session = null) => (await UpsertAsync(new[] { instance }, session)).MaybeFirst();
+        public async Task UpdateAsync(T instance, ISessionHandle session = null) => await UpdateAsync(new[] { instance }, session);
+        public async Task DeleteAsync(T instance, ISessionHandle session = null) => await DeleteAsync(new []{ instance }, session);
+        public async Task DeleteAsync(string id, ISessionHandle session = null) => await DeleteAsync(new []{ id }, session);
 
-        internal class FilterResolver : IFieldResolver<T>
+        public ResultPage<T> Query<TP>(Expression<Func<T, TP>> expression, object value, ISessionHandle session = null) => QueryAsync(expression, value, session).Result;
+        public ResultPage<T> Query(IFilter<T> filter, ISessionHandle session = null) => QueryAsync(filter, session).Result;
+        public ResultPage<T> QueryAll(int? limit = null, int? skip = null, ISessionHandle session = null) => QueryAllAsync(limit, skip, session).Result;
+        public Maybe<T> FindById(string id, ISessionHandle session = null) => FindByIdAsync(id, session).Result;
+        public string Insert(T instance, ISessionHandle session = null) => InsertAsync(instance, session).Result;
+        public string[] Insert(T[] instances, ISessionHandle session = null) => InsertAsync(instances, session).Result;
+        public void Update(T[] instances, ISessionHandle session = null) => UpdateAsync(instances, session).Wait();
+        public void Update(T instance, ISessionHandle session = null) => UpdateAsync(instance, session).Wait();
+        public Maybe<string> Upsert(T instance, ISessionHandle session = null) => UpsertAsync(instance, session).Result;
+        public string[] Upsert(T[] instances, ISessionHandle session = null) => UpsertAsync(instances, session).Result;
+        public void Delete(T instance, ISessionHandle session = null) => DeleteAsync(instance, session).Wait();
+        public void Delete(T[] instances, ISessionHandle session = null) => DeleteAsync(instances, session).Wait();
+        public void Delete(string[] ids, ISessionHandle session = null) => DeleteAsync(ids, session).Wait();
+        public void Delete(string id, ISessionHandle session = null) => DeleteAsync(id, session).Wait();
+        public ISessionHandle StartSession() => StartSessionAsync().Result;
+
+        private class FilterResolver : IFieldResolver<T>
         {
             private readonly IEntityMapping<T> mapping;
 
@@ -273,7 +256,7 @@ namespace ZBRA.Mongo.Repository.Impl
                 this.mapping = mapping;
             }
 
-            public string FieldName<P>(Expression<Func<T, P>> expression)
+            public string FieldName<TP>(Expression<Func<T, TP>> expression)
             {
                 var property = expression.ExtractPropertyInfo();
                 return mapping.GetFieldName(property)

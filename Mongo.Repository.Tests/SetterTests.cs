@@ -1,10 +1,10 @@
-using FluentAssertions;
-using MongoDB.Bson;
-using MongoDB.Driver;
 using System;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using FluentAssertions;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Xunit;
 using ZBRA.Mongo.Repository.Impl;
 
@@ -27,7 +27,7 @@ namespace ZBRA.Mongo.Repository.Tests
         }
 
         [Fact]
-        public async Task TestGetter_WithNoSetter_ShouldSuccessed()
+        public async Task TestGetter_WithNoSetter_ShouldSucceed()
         {
             mappings.Entity<NoSetter>()
                 .Property(e => e.Data, hasPublicSetter: false)
@@ -37,8 +37,8 @@ namespace ZBRA.Mongo.Repository.Tests
 
             var noSetter = new NoSetter();
             noSetter.ChangeData();
-            repository.Insert(noSetter);
-            var record = repository.QueryAll().Entities.First();
+            await repository.InsertAsync(noSetter);
+            var record = (await repository.QueryAllAsync()).Entities.First();
             record.Data.Should().Be("a");
 
             await repository.InsertAsync(new NoSetter());
@@ -60,7 +60,7 @@ namespace ZBRA.Mongo.Repository.Tests
         public void TestWrongConfigurations_NoSetter_ShouldThrowArgumentException()
         {
             mappings.Entity<NoSetter>()
-                .Invoking(e => e.Property(e => e.Data)
+                .Invoking(e => e.Property(i => i.Data)
                                .Infer(true)
                                .Build())
                 .Should().Throw<ArgumentException>()
@@ -71,7 +71,7 @@ namespace ZBRA.Mongo.Repository.Tests
         public void TestWrongConfigurations_NoProperty_ShouldThrowArgumentException()
         {
             mappings.Entity<NoProperty>()
-                .Invoking(e => e.Property(e => e.data)
+                .Invoking(e => e.Property(i => i.data)
                                .Infer(true)
                                .Build())
                 .Should().Throw<ArgumentException>()
@@ -82,7 +82,7 @@ namespace ZBRA.Mongo.Repository.Tests
         public void TestWrongConfigurations_PrivateSetter_ShouldThrowArgumentException2()
         {
             mappings.Entity<PrivateSetter>()
-                .Invoking(e => e.Property(e => e.Data)
+                .Invoking(e => e.Property(i => i.Data)
                                .Infer(true)
                                .Build())
                 .Should().Throw<ArgumentException>()
@@ -101,12 +101,12 @@ namespace ZBRA.Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
             var repository = new Repository<PrivateSetterDate>(fixture.Client, fixture.GetDb(), mappings);
-            repository.Delete(repository.QueryAll().Entities);
+            await repository.DeleteAsync((await repository.QueryAllAsync()).Entities);
 
             var privateSetterDate = new PrivateSetterDate();
             privateSetterDate.ChangeData();
-            repository.Insert(privateSetterDate);
-            var record = repository.QueryAll().Entities.First();
+            await repository.InsertAsync(privateSetterDate);
+            var record = (await repository.QueryAllAsync()).Entities.First();
             record.DateTime.Should().Be(day17);
 
             await repository.InsertAsync(new PrivateSetterDate());
@@ -134,12 +134,12 @@ namespace ZBRA.Mongo.Repository.Tests
                 .Infer(true)
                 .Build();
             var repository = new Repository<PrivateSetterDate>(fixture.Client, fixture.GetDb(), mappings);
-            repository.Delete(repository.QueryAll().Entities);
+            await repository.DeleteAsync((await repository.QueryAllAsync()).Entities);
 
             var privateSetterDate = new PrivateSetterDate();
             privateSetterDate.ChangeData();
-            repository.Insert(privateSetterDate);
-            var record = repository.QueryAll().Entities.First();
+            await repository.InsertAsync(privateSetterDate);
+            var record = (await repository.QueryAllAsync()).Entities.First();
             record.DateTime.Should().Be(day17);
 
             await repository.InsertAsync(new PrivateSetterDate());
@@ -156,7 +156,7 @@ namespace ZBRA.Mongo.Repository.Tests
             result.Entities.First().DateTime.Should().Be(day17);
         }
 
-        public class PrivateSetter
+        private class PrivateSetter
         {
             public string Id { get; set; }
             public string Data { get; private set; }
@@ -172,7 +172,7 @@ namespace ZBRA.Mongo.Repository.Tests
             }
         }
 
-        public class PrivateSetterDate
+        private class PrivateSetterDate
         {
             public string Id { get; set; }
             public DateTime? DateTime { get; private set; }
@@ -188,7 +188,7 @@ namespace ZBRA.Mongo.Repository.Tests
             }
         }
 
-        public class NoSetter
+        private class NoSetter
         {
             private string data = "a";
 
@@ -202,12 +202,12 @@ namespace ZBRA.Mongo.Repository.Tests
             }
         }
 
-        public class NoProperty
+        private class NoProperty
         {
-            public string data = "a";
+            public readonly string data = "a";
         }
 
-        public class NoSetterStringQuery : IFilter<NoSetter>
+        private class NoSetterStringQuery : IFilter<NoSetter>
         {
             public string Value { get; set; }
 
@@ -221,7 +221,7 @@ namespace ZBRA.Mongo.Repository.Tests
             }
         }
 
-        public class PrivateSetterDateStringQuery : IFilter<PrivateSetterDate>
+        private class PrivateSetterDateStringQuery : IFilter<PrivateSetterDate>
         {
             public string Value { get; set; }
 
@@ -236,7 +236,7 @@ namespace ZBRA.Mongo.Repository.Tests
             }
         }
 
-        public class PrivateSetterDateTimeQuery : IFilter<PrivateSetterDate>
+        private class PrivateSetterDateTimeQuery : IFilter<PrivateSetterDate>
         {
             public BsonDateTime Value { get; set; }
 

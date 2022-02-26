@@ -1,6 +1,6 @@
+using System.Threading.Tasks;
 using FluentAssertions;
 using MongoDB.Bson;
-using System.Threading.Tasks;
 using Xunit;
 using ZBRA.Mongo.Repository.Impl;
 
@@ -146,13 +146,13 @@ namespace ZBRA.Mongo.Repository.Tests
                 .Be("Cannot update an entity that has key null");
         }
 
-        public class KeyObj
+        private class KeyObj
         {
             public string K { get; set; }
             public string Name { get; set; }
         }
 
-        public class IdObj
+        private class IdObj
         {
             public string Id { get; set; }
             public string Name { get; set; }

@@ -59,7 +59,7 @@ namespace ZBRA.Mongo.Repository.Tests
             myObj.Should().BeEquivalentTo(found);
         }
 
-        public class IgnoreObj
+        private class IgnoreObj
         {
             public string Id { get; set; }
             public string Name { get; set; }
@@ -68,7 +68,7 @@ namespace ZBRA.Mongo.Repository.Tests
             public SubObj IgnoreSub { get; set; }
         }
 
-        public class SubObj
+        private class SubObj
         {
             public string Name { get; set; }
             public string Ignore { get; set; }

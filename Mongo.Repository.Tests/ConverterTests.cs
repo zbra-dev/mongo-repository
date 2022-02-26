@@ -1,5 +1,5 @@
-﻿using FluentAssertions;
-using System;
+﻿using System;
+using FluentAssertions;
 using Xunit;
 using ZBRA.Mongo.Repository.Impl;
 
@@ -131,7 +131,7 @@ namespace ZBRA.Mongo.Repository.Tests
             myObj.Should().BeEquivalentTo(repository.FindById(myObj.Id).Value);
         }
 
-        public class PrimitiveObj
+        private class PrimitiveObj
         {
             public string Id { get; set; }
             public int Int { get; set; }

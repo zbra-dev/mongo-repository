@@ -1,6 +1,6 @@
-using FluentAssertions;
 using System;
 using System.Collections.Generic;
+using FluentAssertions;
 using Xunit;
 
 namespace ZBRA.Mongo.Repository.Tests
@@ -10,9 +10,9 @@ namespace ZBRA.Mongo.Repository.Tests
 
         [Theory]
         [MemberData(nameof(GetInvalidDataConfiguration))]
-        public void Validate_DatastoreConfiguration_ShouldFail(MongoConfig datastoreConfig)
+        public void Validate_Configuration_ShouldFail(MongoConfig config)
         {
-            datastoreConfig
+            config
                 .Invoking(c => c.Validate())
                 .Should()
                 .Throw<Exception>()
@@ -23,9 +23,9 @@ namespace ZBRA.Mongo.Repository.Tests
 
         [Theory]
         [MemberData(nameof(GetValidDataConfiguration))]
-        public void Validate_DataStoreConfiguration_Success(MongoConfig datastoreConfig)
+        public void Validate_Configuration_Success(MongoConfig config)
         {
-            datastoreConfig.Validate();
+            config.Validate();
         }
 
         public static IEnumerable<object[]> GetInvalidDataConfiguration()
