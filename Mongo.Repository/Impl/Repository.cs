@@ -79,7 +79,7 @@ namespace ZBRA.Mongo.Repository.Impl
 
         public async Task<ResultPage<T>> QueryAsync(IFilter<T> filter, ISessionHandle session = null)
         {
-            var resolver = new FilterResolver(mapping);
+            var resolver = new FieldResolver<T>(mapping);
             var filterDefinition = filter.CreateFilter(resolver);
             var sortDefinition = filter.CreateSort(resolver);
             var result = await CreateQuery(filterDefinition, session)
@@ -246,28 +246,5 @@ namespace ZBRA.Mongo.Repository.Impl
         public void Delete(string[] ids, ISessionHandle session = null) => DeleteAsync(ids, session).Wait();
         public void Delete(string id, ISessionHandle session = null) => DeleteAsync(id, session).Wait();
         public ISessionHandle StartSession() => StartSessionAsync().Result;
-
-        private class FilterResolver : IFieldResolver<T>
-        {
-            private readonly IEntityMapping<T> mapping;
-
-            public FilterResolver(IEntityMapping<T> mapping)
-            {
-                this.mapping = mapping;
-            }
-
-            public string FieldName<TP>(Expression<Func<T, TP>> expression)
-            {
-                var property = expression.ExtractPropertyInfo();
-                return mapping.GetFieldName(property)
-                    .OrThrow(() => new ArgumentException($"Property [{property.Name}] not found"));
-            }
-
-            public string FieldName(string propertyName)
-            {
-                return mapping.GetFieldName(propertyName)
-                    .OrThrow(() => new ArgumentException($"Property [{propertyName}] not found"));
-            }
-        }
     }
 }

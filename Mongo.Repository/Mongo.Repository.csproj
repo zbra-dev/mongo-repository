@@ -2,10 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <Version>0.1.2-beta2</Version>
+    <Version>0.1.2-beta3</Version>
     <AssemblyName>ZBRA.Mongo.Repository</AssemblyName>
     <RootNamespace>ZBRA.Mongo.Repository</RootNamespace>
-    <PackageVersion>0.1.2-beta2</PackageVersion>
+    <PackageVersion>0.1.2-beta3</PackageVersion>
     <Authors>ZBRA Solutions</Authors>
     <PackageProjectUrl>https://github.com/zbra-solutions/mongo-repository</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zbra-solutions/mongo-repository</RepositoryUrl>

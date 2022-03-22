@@ -12,6 +12,7 @@ namespace ZBRA.Mongo.Repository
         public MappingBuilder<T, U> Entity<T, U>(string name = null) where U : T => new MappingBuilder<T, U>(this, name);
 
         public IList<IEntityMigration> FindMigrations<T>() => Get<T>().FindMigrations();
+        public IFieldResolver<T> GetFieldResolver<T>() => new FieldResolver<T>(Get<T>());
 
         #region internal
 
