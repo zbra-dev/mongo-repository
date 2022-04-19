@@ -39,10 +39,6 @@
     <Content Include="Mongo\mongo-setup\mongo-setup.sh">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <None Remove="Mongo\mongo-setup\wait-for-it.sh" />
-    <Content Include="Mongo\mongo-setup\wait-for-it.sh">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <None Remove="Mongo\mongo-setup\wait-for-mongo.sh" />
     <Content Include="Mongo\mongo-setup\wait-for-mongo.sh">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
