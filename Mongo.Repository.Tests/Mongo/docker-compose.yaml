@@ -20,3 +20,5 @@ services:
     build: "./mongo-setup"
     depends_on:
       - mongodb1
+      - mongodb2
+      - mongodb3
