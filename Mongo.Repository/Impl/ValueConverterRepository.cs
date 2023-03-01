@@ -118,7 +118,12 @@ namespace ZBRA.Mongo.Repository.Impl
             }
 
             innerType = new[] { type }.Concat(type.GetInterfaces())
-                .Where(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(IList<>))
+                .Where(t => t.IsGenericType)
+                .Where(t =>
+                {
+                    var typeDefinition = t.GetGenericTypeDefinition();
+                    return typeDefinition == typeof(IList<>) || typeDefinition == typeof(IReadOnlyList<>);
+                })
                 .Select(t => t.GetGenericArguments().Single())
                 .FirstOrDefault();
             return innerType != null;
