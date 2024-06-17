@@ -2,10 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <AssemblyName>ZBRA.Mongo.Repository</AssemblyName>
     <RootNamespace>ZBRA.Mongo.Repository</RootNamespace>
-    <PackageVersion>1.1.1</PackageVersion>
+    <PackageVersion>1.1.2</PackageVersion>
     <Authors>ZBRA Solutions</Authors>
     <PackageProjectUrl>https://github.com/zbra-solutions/mongo-repository</PackageProjectUrl>
     <RepositoryUrl>https://github.com/zbra-solutions/mongo-repository</RepositoryUrl>
@@ -16,7 +16,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="3.1.3" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.3" />
-    <PackageReference Include="MongoDB.Driver" Version="2.19.0" />
+    <PackageReference Include="MongoDB.Driver" Version="2.26.0" />
     <PackageReference Include="System.Text.Json" Version="4.7.2" />
     <PackageReference Include="ZBRA.Maybe" Version="0.2.0" />
   </ItemGroup>
