@@ -24,7 +24,7 @@ steps:
 - task: NuGetAuthenticate@1
   displayName: Authenticating Nuget
   inputs:
-    nuGetServiceConnections: nuget.org
+    nuGetServiceConnections: MPN-ZBRA
 
 - task: NuGetCommand@2
   displayName: Nuget Restore
