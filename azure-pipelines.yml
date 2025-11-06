@@ -29,7 +29,7 @@ steps:
 
 - task: UseDotNet@2
   inputs:
-    version: 3.1.x
+    version: 8.x
 
 - task: DotNetCoreCLI@2
   displayName: Build
