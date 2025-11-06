@@ -21,6 +21,9 @@ steps:
 - task: NuGetToolInstaller@1
   displayName: Nuget Install
 
+- task: NuGetAuthenticate@1
+  displayName: Authenticating Nuget
+
 - task: NuGetCommand@2
   displayName: Nuget Restore
   inputs:
