@@ -49,6 +49,7 @@ steps:
     action: Run services
     detached: true
     arguments: --force-recreate mongosetup
+    projectName: "mongo-repository"
   
 - task: DotNetCoreCLI@2
   displayName: Dotnet Test
