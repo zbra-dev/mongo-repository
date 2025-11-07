@@ -1,6 +1,7 @@
+using FluentAssertions;
 using System;
 using System.Linq;
-using FluentAssertions;
+using System.Threading.Tasks;
 using Xunit;
 using ZBRA.Mongo.Repository.Impl;
 
@@ -23,7 +24,7 @@ namespace ZBRA.Mongo.Repository.Tests
         }
 
         [Fact]
-        public async void DoInsertDelete()
+        public async Task DoInsertDelete()
         {
             var x = new IntObj { Name = "myobj1", Value = 0 };
             var id = await repository.InsertAsync(x);
@@ -39,7 +40,7 @@ namespace ZBRA.Mongo.Repository.Tests
         }
 
         [Fact]
-        public async void DoMultipleInsert()
+        public async Task DoMultipleInsert()
         {
             var objs = Enumerable.Range(0, 10).Select(i => new IntObj { Name = $"myobj{i}", Value = 100 + (i / 5) }).ToArray();
             var ids = await repository.InsertAsync(objs);
@@ -59,7 +60,7 @@ namespace ZBRA.Mongo.Repository.Tests
         }
 
         [Fact]
-        public async void CannotInsertDuplicatesInSameTransaction()
+        public async Task CannotInsertDuplicatesInSameTransaction()
         {
             var ids = await repository.InsertAsync(new IntObj { Name = "myobj1" });
             var objs = new[]
@@ -69,17 +70,17 @@ namespace ZBRA.Mongo.Repository.Tests
             };
             var session = await repository.StartSessionAsync();
             session.StartTransaction();
-            repository
+            await repository
                 .Awaiting(r => r.InsertAsync(objs, session))
                 .Should()
-                .ThrowExactly<UniqueConstraintException>();
+                .ThrowExactlyAsync<UniqueConstraintException>();
             await session.AbortTransactionAsync();
             var result = await repository.QueryAllAsync();
             result.Entities.Should().HaveCount(1);
         }
 
         [Fact]
-        public async void CannotInsertDuplicatesIfExistsBefore()
+        public async Task CannotInsertDuplicatesIfExistsBefore()
         {
             await repository.InsertAsync(new IntObj { Name = "myobj1", Unique = "a" });
 
@@ -87,44 +88,44 @@ namespace ZBRA.Mongo.Repository.Tests
             {
                 new IntObj { Unique = "a" },
             };
-            repository
+            await repository
                 .Awaiting(r => r.InsertAsync(objs))
                 .Should()
-                .ThrowExactly<UniqueConstraintException>();
+                .ThrowExactlyAsync<UniqueConstraintException>();
             var result = await repository.QueryAllAsync();
             result.Entities.Should().HaveCount(1);
 
-            objs = new[]
-            {
+            objs =
+            [
                 new IntObj { Unique = "a" },
                 new IntObj { Unique = "b" },
                 new IntObj { Unique = "c" },
-            };
-            repository
+            ];
+            await repository
                 .Awaiting(r => r.InsertAsync(objs))
                 .Should()
-                .ThrowExactly<UniqueConstraintException>();
+                .ThrowExactlyAsync<UniqueConstraintException>();
             result = await repository.QueryAllAsync();
             result.Entities.Should().HaveCount(1);
 
-            objs = new[]
-            {
+            objs =
+            [
                 new IntObj { Unique = "a" },
                 new IntObj { Unique = "a" },
                 new IntObj { Unique = "a" },
-            };
-            repository
+            ];
+            await repository
                 .Awaiting(r => r.InsertAsync(objs))
                 .Should()
-                .ThrowExactly<UniqueConstraintException>();
+                .ThrowExactlyAsync<UniqueConstraintException>();
             result = await repository.QueryAllAsync();
             result.Entities.Should().HaveCount(1);
 
-            objs = new[]
-            {
+            objs =
+            [
                 new IntObj { Unique = "b" },
                 new IntObj { Unique = "c" },
-            };
+            ];
             var ids = await repository.InsertAsync(objs);
             ids.Should().HaveCount(2);
             result = await repository.QueryAllAsync();
@@ -133,10 +134,10 @@ namespace ZBRA.Mongo.Repository.Tests
             await repository.DeleteAsync(result.Entities.Where(o => o.Unique == "a").ToArray());
             result = await repository.QueryAllAsync();
             result.Entities.Should().HaveCount(2);
-            objs = new[]
-            {
+            objs =
+            [
                 new IntObj { Unique = "a" },
-            };
+            ];
             ids = await repository.InsertAsync(objs);
             ids.Should().HaveCount(1);
             result = await repository.QueryAllAsync();
@@ -144,7 +145,7 @@ namespace ZBRA.Mongo.Repository.Tests
         }
 
         [Fact]
-        public async void UpsertIsSupported()
+        public async Task UpsertIsSupported()
         {
             await repository.InsertAsync(new IntObj { Name = "myobj1", Unique = "a" });
             var result = await repository.QueryAllAsync();
@@ -158,7 +159,7 @@ namespace ZBRA.Mongo.Repository.Tests
         }
 
         [Fact]
-        public async void VerifyUniqueWithUpdate()
+        public async Task VerifyUniqueWithUpdate()
         {
             var objs = new IntObj[]
             {
@@ -181,10 +182,10 @@ namespace ZBRA.Mongo.Repository.Tests
 
             a = result.Entities.First(e => e.Unique == "a");
             a.Unique = "c";
-            repository
+            await repository
                 .Awaiting(r => r.UpdateAsync(a))
                 .Should()
-                .ThrowExactly<UniqueConstraintException>();
+                .ThrowExactlyAsync<UniqueConstraintException>();
             result = await repository.QueryAllAsync();
             result.Entities.Should().HaveCount(3);
             result.Entities.Select(e => e.Unique).Distinct().Should().BeEquivalentTo(new[] { "a", "b", "c" });

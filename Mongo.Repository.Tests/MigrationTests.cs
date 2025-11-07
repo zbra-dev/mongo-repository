@@ -1,22 +1,18 @@
-using System;
 using FluentAssertions;
+using System;
+using System.Threading.Tasks;
 using Xunit;
 using ZBRA.Mongo.Repository.Impl;
 
 namespace ZBRA.Mongo.Repository.Tests
 {
     [Collection("MongoCollection")]
-    public class MigrationTests
+    public class MigrationTests(MongoFixture fixture)
     {
-        private readonly MongoFixture fixture;
-
-        public MigrationTests(MongoFixture fixture)
-        {
-            this.fixture = fixture;
-        }
+        private readonly MongoFixture fixture = fixture;
 
         [Fact]
-        public async void VerifyMigrationIsSuccessful()
+        public async Task VerifyMigrationIsSuccessful()
         {
             var mappings = new Mappings();
             mappings.Entity<IntObj>("MyObj11WillBeUnique")
@@ -44,18 +40,18 @@ namespace ZBRA.Mongo.Repository.Tests
 
             await repository.InsertAsync(new IntObj { Name = "Unique1", Unique = "c" });
 
-            repository
+            await repository
                 .Awaiting(r => r.InsertAsync(new IntObj { Name = "Unique2", Unique = "c" }))
                 .Should()
-                .ThrowExactly<UniqueConstraintException>();
+                .ThrowExactlyAsync<UniqueConstraintException>();
 
             objs[0].Name = "updated1";
             await repository.UpdateAsync(objs[0]);
 
-            repository
+            await repository
                 .Awaiting(r => r.InsertAsync(new IntObj { Name = "Unique3", Unique = "a" }))
                 .Should()
-                .ThrowExactly<UniqueConstraintException>();
+                .ThrowExactlyAsync<UniqueConstraintException>();
 
             // deleting a legacy obj should not cause any issues
             await repository.DeleteAsync(objs[1]);
