@@ -28,14 +28,12 @@ steps:
 - task: NuGetAuthenticate@1
   displayName: Authenticate Nuget
 
-- task: NuGetCommand@2
-  displayName: Restore Nuget
+- task: DotNetCoreCLI@2
+  displayName: dotnet restore
   inputs:
-    command: 'restore'
-    restoreSolution: '**/*.sln'
-    feedsToUse: 'config'
-    nugetConfigPath: 'NuGet.Config'
-
+    command: restore
+    projects: $(workingDirectory)/Mongo.Repository.sln
+   
 - task: DotNetCoreCLI@2
   displayName: Build
   inputs:
