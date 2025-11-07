@@ -33,6 +33,8 @@ steps:
   inputs:
     command: 'restore'
     restoreSolution: '**/*.sln'
+    feedsToUse: 'config'
+    nugetConfigPath: 'NuGet.Config'
 
 - task: DotNetCoreCLI@2
   displayName: Build
