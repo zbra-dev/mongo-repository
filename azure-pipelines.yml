@@ -65,6 +65,7 @@ steps:
     dockerComposeFile: $(Build.SourcesDirectory)/.build/compose.yml
     action: Run a Docker Compose command
     dockerComposeCommand: down
+    projectName: "mongo-repository"
 
 - task: DotNetCoreCLI@2
   displayName: Nuget Pack
