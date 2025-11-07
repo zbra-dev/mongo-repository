@@ -32,7 +32,7 @@ steps:
   displayName: dotnet restore
   inputs:
     command: restore
-    projects: $(workingDirectory)/Mongo.Repository.sln
+    projects: Mongo.Repository/Mongo.Repository.sln
    
 - task: DotNetCoreCLI@2
   displayName: Build
