@@ -18,24 +18,21 @@ variables:
   buildConfiguration: Release
 
 steps:
+- task: UseDotNet@2
+  inputs:
+    version: 8.x
+
 - task: NuGetToolInstaller@1
   displayName: Nuget Install
 
 - task: NuGetAuthenticate@1
-  displayName: Authenticating Nuget
-  inputs:
-    nuGetServiceConnections: ZBRA-NUGET
+  displayName: Authenticate Nuget
 
 - task: NuGetCommand@2
-  displayName: Nuget Restore
+  displayName: Restore Nuget
   inputs:
-    command: restore
+    command: 'restore'
     restoreSolution: '**/*.sln'
-    feedsToUse: 'select'
-
-- task: UseDotNet@2
-  inputs:
-    version: 8.x
 
 - task: DotNetCoreCLI@2
   displayName: Build
@@ -58,7 +55,7 @@ steps:
     versioningScheme: off
 
 - task: NuGetCommand@2
-  displayName: NuGet push
+  displayName: Nuget push
   condition: eq(${{ parameters.publishPackage }}, true)
   inputs:
     command: push
