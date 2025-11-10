@@ -7,14 +7,9 @@ using ZBRA.Mongo.Repository.Impl;
 namespace ZBRA.Mongo.Repository.Tests
 {
     [Collection("MongoCollection")]
-    public class KeyTests
+    public class KeyTests(MongoFixture fixture)
     {
-        private readonly MongoFixture fixture;
-
-        public KeyTests(MongoFixture fixture)
-        {
-            this.fixture = fixture;
-        }
+        private readonly MongoFixture fixture = fixture;
 
         [Fact]
         public void TestCustomKey()
@@ -54,9 +49,8 @@ namespace ZBRA.Mongo.Repository.Tests
             myRepo
                 .Awaiting(r => r.InsertAsync(myObj))
                 .Should()
-                .Throw<PersistenceException>()
-                .Which.Message.Should()
-                .Be("Cannot insert instance that already has key set");
+                .ThrowAsync<PersistenceException>()
+                .WithMessage("Cannot insert instance that already has key set");
         }
 
         [Fact]
@@ -75,12 +69,12 @@ namespace ZBRA.Mongo.Repository.Tests
                 K = "999",
                 Name = "A"
             };
+
             myRepo
                 .Awaiting(r => r.InsertAsync(myObj))
                 .Should()
-                .Throw<PersistenceException>()
-                .Which.Message.Should()
-                .Be("Cannot insert instance that already has key set");
+                .ThrowAsync<PersistenceException>()
+                .WithMessage("Cannot insert instance that already has key set");
         }
 
         [Fact]
@@ -119,9 +113,8 @@ namespace ZBRA.Mongo.Repository.Tests
             repo
                 .Awaiting(r => r.UpdateAsync(obj))
                 .Should()
-                .Throw<PersistenceException>()
-                .Which.Message.Should()
-                .Be("Cannot update an entity that has key null");
+                .ThrowAsync<PersistenceException>()
+                .WithMessage("Cannot update an entity that has key null");
         }
 
         [Fact]
@@ -138,12 +131,11 @@ namespace ZBRA.Mongo.Repository.Tests
             var obj = new KeyObj { Name = "Bla" };
             await repo.InsertAsync(obj);
 
-            repo
+            await repo
                 .Awaiting(r => r.UpdateAsync(obj))
                 .Should()
-                .Throw<PersistenceException>()
-                .Which.Message.Should()
-                .Be("Cannot update an entity that has key null");
+                .ThrowAsync<PersistenceException>()
+                .WithMessage("Cannot update an entity that has key null");
         }
 
         private class KeyObj

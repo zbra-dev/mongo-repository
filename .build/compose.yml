@@ -1,0 +1,23 @@
+services:
+  mongodb1:
+    image: mongo:7.0
+    ports:
+      - "27021:27017"
+    command: ['--replSet', 'rsmongo', '--bind_ip_all']
+  mongodb2:
+    image: mongo:7.0
+    ports:
+      - "27022:27017"
+    command: ['--replSet', 'rsmongo', '--bind_ip_all']
+  mongodb3:
+    image: mongo:7.0
+    ports:
+      - "27023:27017"
+    command: ['--replSet', 'rsmongo', '--bind_ip_all']
+  mongosetup:
+    image: "mongo-setup"
+    build: "./mongo-setup"
+    depends_on:
+      - mongodb1
+      - mongodb2
+      - mongodb3

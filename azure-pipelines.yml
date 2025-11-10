@@ -18,31 +18,54 @@ variables:
   buildConfiguration: Release
 
 steps:
+- task: UseDotNet@2
+  inputs:
+    version: 8.0.x
+
 - task: NuGetToolInstaller@1
   displayName: Nuget Install
 
-- task: NuGetCommand@2
-  displayName: Nuget Restore
-  inputs:
-    command: restore
-    restoreSolution: '**/*.sln'
-
-- task: UseDotNet@2
-  inputs:
-    version: 3.1.x
+- task: NuGetAuthenticate@1
+  displayName: Nuget Authentication
 
 - task: DotNetCoreCLI@2
-  displayName: Build
+  displayName: Dotnet Restore
+  inputs:
+    command: restore
+    projects: '**/*.sln'
+   
+- task: DotNetCoreCLI@2
+  displayName: Dotnet Build
   inputs:
     command: build
     projects: '**/*.csproj'
     workingDirectory: $(Build.SourcesDirectory)
+
+- task: DockerCompose@1
+  displayName: Docker Compose Up
+  inputs:
+    containerRegistryType: Container Registry
+    dockerComposeFile: $(Build.SourcesDirectory)/.build/compose.yml
+    action: Run services
+    detached: true
+    arguments: --force-recreate mongosetup
+    projectName: "mongo-repository"
   
 - task: DotNetCoreCLI@2
-  displayName: Test
+  displayName: Dotnet Test
   inputs:
     command: test
     projects: Mongo.Repository.Tests/Mongo.Repository.Tests.csproj
+
+- task: DockerCompose@1
+  condition: always()
+  displayName: Docker Compose Down
+  inputs:
+    containerregistrytype: Container Registry
+    dockerComposeFile: $(Build.SourcesDirectory)/.build/compose.yml
+    action: Run a Docker Compose command
+    dockerComposeCommand: down
+    projectName: "mongo-repository"
 
 - task: DotNetCoreCLI@2
   displayName: Nuget Pack
@@ -52,7 +75,7 @@ steps:
     versioningScheme: off
 
 - task: NuGetCommand@2
-  displayName: NuGet push
+  displayName: Nuget Push
   condition: eq(${{ parameters.publishPackage }}, true)
   inputs:
     command: push

@@ -44,7 +44,7 @@ namespace ZBRA.Mongo.Repository.Tests
             myObj.Id = repository.Insert(myObj);
             myObj.Should().BeEquivalentTo(
                 repository.FindById(myObj.Id).Value,
-                o => o.Using<DateTime>(ctx => ctx.Subject.Should().BeCloseTo(ctx.Expectation, 1)).WhenTypeIs<DateTime>()
+                o => o.Using<DateTime>(ctx => ctx.Subject.Should().BeCloseTo(ctx.Expectation, TimeSpan.FromMilliseconds(1))).WhenTypeIs<DateTime>()
             );
         }
 
@@ -75,7 +75,7 @@ namespace ZBRA.Mongo.Repository.Tests
             minObj.Id = repository.Insert(minObj);
             minObj.Should().BeEquivalentTo(
                 repository.FindById(minObj.Id).Value,
-                o => o.Using<DateTime>(ctx => ctx.Subject.Should().BeCloseTo(ctx.Expectation, 1)).WhenTypeIs<DateTime>()
+                o => o.Using<DateTime>(ctx => ctx.Subject.Should().BeCloseTo(ctx.Expectation, TimeSpan.FromMilliseconds(1))).WhenTypeIs<DateTime>()
             );
 
             var maxObj = new PrimitiveObj()
@@ -94,7 +94,7 @@ namespace ZBRA.Mongo.Repository.Tests
             maxObj.Id = repository.Insert(maxObj);
             maxObj.Should().BeEquivalentTo(
                 repository.FindById(maxObj.Id).Value,
-                o => o.Using<DateTime>(ctx => ctx.Subject.Should().BeCloseTo(ctx.Expectation, 1)).WhenTypeIs<DateTime>()
+                o => o.Using<DateTime>(ctx => ctx.Subject.Should().BeCloseTo(ctx.Expectation, TimeSpan.FromMilliseconds(1))).WhenTypeIs<DateTime>()
             );
         }
 
