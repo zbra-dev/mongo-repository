@@ -13,27 +13,25 @@ parameters:
     default: false
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: Any CPU
-  buildConfiguration: Release
+  - name: solution
+    value: '**/*.sln'
+  - name: buildPlatform
+    value: Any CPU
+  - name: buildConfiguration
+    value: Release
+  - group: 'Nuget - zbra-solutions'
 
 steps:
 - task: UseDotNet@2
   inputs:
     version: 8.0.x
 
-- task: NuGetToolInstaller@1
-  displayName: Nuget Install
-
-- task: NuGetAuthenticate@1
-  displayName: Nuget Authentication
-
 - task: DotNetCoreCLI@2
   displayName: Dotnet Restore
   inputs:
     command: restore
     projects: '**/*.sln'
-   
+
 - task: DotNetCoreCLI@2
   displayName: Dotnet Build
   inputs:
@@ -74,11 +72,9 @@ steps:
     packagesToPack: Mongo.Repository/Mongo.Repository.csproj
     versioningScheme: off
 
-- task: NuGetCommand@2
+- script: |
+    dotnet nuget push "$(Build.ArtifactStagingDirectory)/*.nupkg" \
+      --api-key $(NugetApiKey) \
+      --source https://api.nuget.org/v3/index.json
   displayName: Nuget Push
   condition: eq(${{ parameters.publishPackage }}, true)
-  inputs:
-    command: push
-    packagesToPush: $(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg
-    nuGetFeedType: external
-    publishFeedCredentials: Nuget
